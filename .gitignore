@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.coverage
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Environments and local secrets
+.venv/
+venv/
+.env
+.env.*
+
+# Build output
+build/
+dist/
+site/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+
+# Generated SDK modules are intentionally committed. Do not ignore src/browserless_bap.

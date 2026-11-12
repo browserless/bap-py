@@ -1,0 +1,86 @@
+# browserless-bap
+
+> Python async and sync SDK for Browserless's Browser Automation Protocol.
+
+## Key resources
+
+- README: https://github.com/browserless/bap-py#readme
+- Browserless documentation: https://docs.browserless.io
+- GraphQL schema: `src/browserless_bap/mutations.graphql`
+
+## API methods
+
+<!-- AUTOGEN:method-list START -->
+
+Generated Page methods: `add_cookies`, `add_script_tag`, `add_style_tag`, `authenticate`, `check`, `click`, `close`, `close_live_url`, `content`, `cookies`, `emulate_media`, `eval_on_selector`, `eval_on_selector_all`, `evaluate`, `fulfill`, `go_back`, `go_forward`, `goto`, `hover`, `html`, `live_url`, `load_secret`, `map_selector`, `markdown`, `pdf`, `preferences`, `proxy`, `query_selector`, `query_selector_all`, `reconnect`, `reject`, `reload`, `request`, `response`, `screenshot`, `scroll`, `select_option`, `send`, `set_content`, `set_extra_http_headers`, `set_java_script_enabled`, `set_user_agent`, `set_viewport_size`, `solve`, `solve_image_captcha`, `stop_session_recording`, `switch_to_window`, `text`, `title`, `type`, `uncheck`, `url`, `wait_for_event`, `wait_for_function`, `wait_for_live_complete`, `wait_for_navigation`, `wait_for_network_idle`, `wait_for_request`, `wait_for_response`, `wait_for_selector`, `wait_for_timeout`, `watch_event`
+
+<!-- AUTOGEN:method-list END -->
+
+## Live URL handoffs
+
+```python
+link = await page.live_url(instructions="Sign in, then click Done.", timeout=120_000)
+print(link["liveURL"])
+completion = await page.wait_for_live_complete(timeout=120_000)
+if completion["reason"] != "userDone":
+    raise RuntimeError(f"Handoff ended: {completion['reason']}")
+# To cancel a link instead: await page.close_live_url(link["liveURLId"])
+```
+
+The sync facade uses the same calls without `await`.
+
+For a richer human handoff, pass an instructions card:
+
+```python
+link = await page.live_url(
+    instructions={
+        "layout": "panel",
+        "format": "markdown",
+        "title": "Complete sign in",
+        "summary": "**Sign in** to continue.",
+        "steps": ["Open your inbox", "Enter the code"],
+        "currentStep": 2,
+    },
+    done_label="Continue",
+    fail_label="Need help",
+    requester_name="Support",
+)
+```
+
+With string instructions, use the top-level `instructions_title`, `steps`,
+`current_step` and `instructions_format`. With a card, put `title`, `steps`,
+`currentStep` and `format` inside it. Button labels and `requester_name` always
+stay top-level. The server validates card limits. For an explicitly annotated
+card, import `LiveURLInstructions` from `browserless_bap.types`.
+
+The SDK subscribes before minting and retains completion until the next mint,
+so a quick completion is not lost between `live_url()` and `wait_for_live_complete()`.
+Wait timeouts are in milliseconds and raise the SDK `TimeoutError`. By default
+there is no client wait deadline; pass a positive timeout to bound the wait.
+`timeout=0` also disables the wait deadline. Timing out or cancelling a wait does
+not close the live URL.
+
+Completion reasons are `userDone`, `userFailed`, `timeout`, `closed`, and
+`viewerDisconnected`. Only `userDone` explicitly means the person finished.
+Use `close_live_url(id)` to end a link programmatically;
+the response contains `liveURLId`. Await each mint before starting another one.
+A re-mint starts a new wait even when the server reuses its ID; existing waits
+remain associated with the preceding handoff. Closing the page or losing the
+connection rejects pending waits. The completion subscription closes when no pending handoffs or public listeners
+remain; cached results remain available. Public listeners use `on`/`off`.
+For reused IDs, the server emits the preceding handoff’s completion before the
+replacement’s completion on the same ordered subscription stream.
+
+Requires a server with the `liveComplete` subscription, `closeLiveURL` mutation,
+and `StringOrInstructions` support for live URL instructions (the client equivalent
+is bap-ts 2.2). This is a coordinated client/server cutover, not a rolling
+server-first upgrade: older clients declare `String`, which the new server
+rejects, and this client declares `StringOrInstructions`, which older servers
+reject, even when the instructions value is a string.
+
+For self-hosted upgrades, pause new handoffs and drain active ones, upgrade the
+server and all clients together, then verify mint, completion, and close before
+resuming handoffs. Handoffs remain unavailable during this cutover. To roll back,
+pause and drain again and restore both the previous server and previous clients;
+rolling back only one side leaves an incompatible pair. No mixed-version
+compatibility path is provided by this SDK.

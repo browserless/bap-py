@@ -1,0 +1,32 @@
+name: PR title
+
+# PRs are squash-merged with the PR title as the commit subject, so titles must
+# follow Conventional Commits to keep history ready for automated release notes.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            revert
+            build
+            chore
+            ci
+            docs
+            style
+            refactor
+            test

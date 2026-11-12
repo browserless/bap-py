@@ -1,0 +1,5560 @@
+"""
+Instructions placement in the live viewer.
+"""
+enum InstructionsLayout {
+  modal
+  panel
+}
+
+"""
+Formatting of Live URL instructions: plain text or safe inline Markdown.
+"""
+enum InstructionsFormat {
+  text
+  markdown
+}
+
+"""
+Response returned after a captcha has been solved
+"""
+type CaptchaResponse {
+  """
+  If a captcha was found or not
+  """
+  found: Boolean
+
+  """
+  If a captcha was found, whether or not it was solved
+  """
+  solved: Boolean
+
+  """
+  The total time it took to find, and solve, the captcha
+  """
+  time: Float
+
+  """
+  The solved token of the response, if any is provided
+  """
+  token: String
+
+  """
+  Error message if something went wrong, providing guidance on how to fix the issue
+  """
+  error: String
+}
+
+"""
+Response returned after setting up the proxy patterns
+"""
+type ProxyResponse {
+  time: Float
+}
+
+"""
+A HTTP header input type
+"""
+input HeaderInput {
+  """
+  The name of the HTTP header
+  """
+  name: String!
+
+  """
+  The value of the HTTP header
+  """
+  value: String!
+}
+
+"""
+The binary-type of the stream
+"""
+enum LiveURLStreamType {
+  """
+  JPEG formatted binary type
+  """
+  jpeg
+
+  """
+  PNG formatted binary type
+  """
+  png
+}
+
+"""
+The two-letter ISO code for the specified country
+"""
+enum CountryType {
+  """
+  Andorra
+  """
+  AD
+
+  """
+  United Arab Emirates
+  """
+  AE
+
+  """
+  Afghanistan
+  """
+  AF
+
+  """
+  Antigua and Barbuda
+  """
+  AG
+
+  """
+  Albania
+  """
+  AL
+
+  """
+  Armenia
+  """
+  AM
+
+  """
+  Angola
+  """
+  AO
+
+  """
+  Argentina
+  """
+  AR
+
+  """
+  Austria
+  """
+  AT
+
+  """
+  Australia
+  """
+  AU
+
+  """
+  Aruba
+  """
+  AW
+
+  """
+  Åland Islands
+  """
+  AX
+
+  """
+  Azerbaijan
+  """
+  AZ
+
+  """
+  Bosnia and Herzegovina
+  """
+  BA
+
+  """
+  Barbados
+  """
+  BB
+
+  """
+  Bangladesh
+  """
+  BD
+
+  """
+  Belgium
+  """
+  BE
+
+  """
+  Burkina Faso
+  """
+  BF
+
+  """
+  Bulgaria
+  """
+  BG
+
+  """
+  Bahrain
+  """
+  BH
+
+  """
+  Burundi
+  """
+  BI
+
+  """
+  Benin
+  """
+  BJ
+
+  """
+  Bermuda
+  """
+  BM
+
+  """
+  Brunei Darussalam
+  """
+  BN
+
+  """
+  Plurinational State of Bolivia
+  """
+  BO
+
+  """
+  Sint Eustatius and Saba Bonaire
+  """
+  BQ
+
+  """
+  Brazil
+  """
+  BR
+
+  """
+  Bahamas
+  """
+  BS
+
+  """
+  Bhutan
+  """
+  BT
+
+  """
+  Botswana
+  """
+  BW
+
+  """
+  Belarus
+  """
+  BY
+
+  """
+  Belize
+  """
+  BZ
+
+  """
+  Canada
+  """
+  CA
+
+  """
+  Congo, The Democratic Republic of the
+  """
+  CD
+
+  """
+  Congo
+  """
+  CG
+
+  """
+  Switzerland
+  """
+  CH
+
+  """
+  Côte d'Ivoire
+  """
+  CI
+
+  """
+  Chile
+  """
+  CL
+
+  """
+  Cameroon
+  """
+  CM
+
+  """
+  China
+  """
+  CN
+
+  """
+  Colombia
+  """
+  CO
+
+  """
+  Costa Rica
+  """
+  CR
+
+  """
+  Cuba
+  """
+  CU
+
+  """
+  Cabo Verde
+  """
+  CV
+
+  """
+  Curaçao
+  """
+  CW
+
+  """
+  Cyprus
+  """
+  CY
+
+  """
+  Czechia
+  """
+  CZ
+
+  """
+  Germany
+  """
+  DE
+
+  """
+  Djibouti
+  """
+  DJ
+
+  """
+  Denmark
+  """
+  DK
+
+  """
+  Dominica
+  """
+  DM
+
+  """
+  Dominican Republic
+  """
+  DO
+
+  """
+  Algeria
+  """
+  DZ
+
+  """
+  Ecuador
+  """
+  EC
+
+  """
+  Estonia
+  """
+  EE
+
+  """
+  Egypt
+  """
+  EG
+
+  """
+  Spain
+  """
+  ES
+
+  """
+  Ethiopia
+  """
+  ET
+
+  """
+  Finland
+  """
+  FI
+
+  """
+  Fiji
+  """
+  FJ
+
+  """
+  Faroe Islands
+  """
+  FO
+
+  """
+  France
+  """
+  FR
+
+  """
+  Gabon
+  """
+  GA
+
+  """
+  United Kingdom
+  """
+  GB
+
+  """
+  Grenada
+  """
+  GD
+
+  """
+  Georgia
+  """
+  GE
+
+  """
+  French Guiana
+  """
+  GF
+
+  """
+  Guernsey
+  """
+  GG
+
+  """
+  Ghana
+  """
+  GH
+
+  """
+  Gibraltar
+  """
+  GI
+
+  """
+  Gambia
+  """
+  GM
+
+  """
+  Guinea
+  """
+  GN
+
+  """
+  Guadeloupe
+  """
+  GP
+
+  """
+  Greece
+  """
+  GR
+
+  """
+  Guatemala
+  """
+  GT
+
+  """
+  Guam
+  """
+  GU
+
+  """
+  Guyana
+  """
+  GY
+
+  """
+  Hong Kong
+  """
+  HK
+
+  """
+  Honduras
+  """
+  HN
+
+  """
+  Croatia
+  """
+  HR
+
+  """
+  Haiti
+  """
+  HT
+
+  """
+  Hungary
+  """
+  HU
+
+  """
+  Indonesia
+  """
+  ID
+
+  """
+  Ireland
+  """
+  IE
+
+  """
+  Israel
+  """
+  IL
+
+  """
+  Isle of Man
+  """
+  IM
+
+  """
+  India
+  """
+  IN
+
+  """
+  Iraq
+  """
+  IQ
+
+  """
+  Iran, Islamic Republic of
+  """
+  IR
+
+  """
+  Iceland
+  """
+  IS
+
+  """
+  Italy
+  """
+  IT
+
+  """
+  Jersey
+  """
+  JE
+
+  """
+  Jamaica
+  """
+  JM
+
+  """
+  Jordan
+  """
+  JO
+
+  """
+  Japan
+  """
+  JP
+
+  """
+  Kenya
+  """
+  KE
+
+  """
+  Kyrgyzstan
+  """
+  KG
+
+  """
+  Cambodia
+  """
+  KH
+
+  """
+  Saint Kitts and Nevis
+  """
+  KN
+
+  """
+  Korea, Republic of
+  """
+  KR
+
+  """
+  Kuwait
+  """
+  KW
+
+  """
+  Cayman Islands
+  """
+  KY
+
+  """
+  Kazakhstan
+  """
+  KZ
+
+  """
+  Lao People's Democratic Republic
+  """
+  LA
+
+  """
+  Lebanon
+  """
+  LB
+
+  """
+  Saint Lucia
+  """
+  LC
+
+  """
+  Liechtenstein
+  """
+  LI
+
+  """
+  Sri Lanka
+  """
+  LK
+
+  """
+  Liberia
+  """
+  LR
+
+  """
+  Lesotho
+  """
+  LS
+
+  """
+  Lithuania
+  """
+  LT
+
+  """
+  Luxembourg
+  """
+  LU
+
+  """
+  Latvia
+  """
+  LV
+
+  """
+  Libya
+  """
+  LY
+
+  """
+  Morocco
+  """
+  MA
+
+  """
+  Monaco
+  """
+  MC
+
+  """
+  Moldova, Republic of
+  """
+  MD
+
+  """
+  Montenegro
+  """
+  ME
+
+  """
+  Madagascar
+  """
+  MG
+
+  """
+  North Macedonia
+  """
+  MK
+
+  """
+  Mali
+  """
+  ML
+
+  """
+  Myanmar
+  """
+  MM
+
+  """
+  Mongolia
+  """
+  MN
+
+  """
+  Macao
+  """
+  MO
+
+  """
+  Martinique
+  """
+  MQ
+
+  """
+  Mauritania
+  """
+  MR
+
+  """
+  Montserrat
+  """
+  MS
+
+  """
+  Malta
+  """
+  MT
+
+  """
+  Mauritius
+  """
+  MU
+
+  """
+  Maldives
+  """
+  MV
+
+  """
+  Malawi
+  """
+  MW
+
+  """
+  Mexico
+  """
+  MX
+
+  """
+  Malaysia
+  """
+  MY
+
+  """
+  Mozambique
+  """
+  MZ
+
+  """
+  Namibia
+  """
+  NA
+
+  """
+  New Caledonia
+  """
+  NC
+
+  """
+  Nigeria
+  """
+  NG
+
+  """
+  Nicaragua
+  """
+  NI
+
+  """
+  Netherlands
+  """
+  NL
+
+  """
+  Norway
+  """
+  NO
+
+  """
+  Nepal
+  """
+  NP
+
+  """
+  New Zealand
+  """
+  NZ
+
+  """
+  Oman
+  """
+  OM
+
+  """
+  Panama
+  """
+  PA
+
+  """
+  Peru
+  """
+  PE
+
+  """
+  French Polynesia
+  """
+  PF
+
+  """
+  Papua New Guinea
+  """
+  PG
+
+  """
+  Philippines
+  """
+  PH
+
+  """
+  Pakistan
+  """
+  PK
+
+  """
+  Poland
+  """
+  PL
+
+  """
+  Puerto Rico
+  """
+  PR
+
+  """
+  Palestine, State of
+  """
+  PS
+
+  """
+  Portugal
+  """
+  PT
+
+  """
+  Paraguay
+  """
+  PY
+
+  """
+  Qatar
+  """
+  QA
+
+  """
+  Réunion
+  """
+  RE
+
+  """
+  Romania
+  """
+  RO
+
+  """
+  Serbia
+  """
+  RS
+
+  """
+  Russian Federation
+  """
+  RU
+
+  """
+  Rwanda
+  """
+  RW
+
+  """
+  Seychelles
+  """
+  SC
+
+  """
+  Sweden
+  """
+  SE
+
+  """
+  Singapore
+  """
+  SG
+
+  """
+  Slovenia
+  """
+  SI
+
+  """
+  Slovakia
+  """
+  SK
+
+  """
+  Sierra Leone
+  """
+  SL
+
+  """
+  San Marino
+  """
+  SM
+
+  """
+  Senegal
+  """
+  SN
+
+  """
+  Somalia
+  """
+  SO
+
+  """
+  Suriname
+  """
+  SR
+
+  """
+  South Sudan
+  """
+  SS
+
+  """
+  Sao Tome and Principe
+  """
+  ST
+
+  """
+  El Salvador
+  """
+  SV
+
+  """
+  Sint Maarten (Dutch part)
+  """
+  SX
+
+  """
+  Syrian Arab Republic
+  """
+  SY
+
+  """
+  Eswatini
+  """
+  SZ
+
+  """
+  Turks and Caicos Islands
+  """
+  TC
+
+  """
+  Togo
+  """
+  TG
+
+  """
+  Thailand
+  """
+  TH
+
+  """
+  Tajikistan
+  """
+  TJ
+
+  """
+  Tunisia
+  """
+  TN
+
+  """
+  Turkey
+  """
+  TR
+
+  """
+  Trinidad and Tobago
+  """
+  TT
+
+  """
+  Taiwan, Province of China
+  """
+  TW
+
+  """
+  United Republic of Tanzania
+  """
+  TZ
+
+  """
+  Ukraine
+  """
+  UA
+
+  """
+  Uganda
+  """
+  UG
+
+  """
+  United States of America
+  """
+  US
+
+  """
+  Uruguay
+  """
+  UY
+
+  """
+  Uzbekistan
+  """
+  UZ
+
+  """
+  Saint Vincent and the Grenadines
+  """
+  VC
+
+  """
+  Bolivarian Republic of Venezuela
+  """
+  VE
+
+  """
+  Virgin Islands, British
+  """
+  VG
+
+  """
+  Virgin Islands, U.S.
+  """
+  VI
+
+  """
+  Vietnam
+  """
+  VN
+
+  """
+  Samoa
+  """
+  WS
+
+  """
+  Mayotte
+  """
+  YT
+
+  """
+  South Africa
+  """
+  ZA
+
+  """
+  Zambia
+  """
+  ZM
+
+  """
+  Zimbabwe
+  """
+  ZW
+}
+
+"""
+The different types of captchas that can be solved
+"""
+enum CaptchaTypes {
+  """
+  cloudflare captcha type
+  """
+  cloudflare
+
+  """
+  hCaptcha captcha type
+  """
+  hcaptcha
+
+  """
+  reCAPTCHA captcha type
+  """
+  recaptcha
+
+  """
+  reCAPTCHA v3 captcha type
+  """
+  recaptchaV3
+
+  """
+  GeeTest captcha type
+  """
+  geetest
+
+  """
+  Normal captcha type
+  """
+  normal
+
+  """
+  Number captcha type (numeric-only image challenge)
+  """
+  numberCaptcha
+
+  """
+  friendlyCaptcha captcha type
+  """
+  friendlyCaptcha
+
+  """
+  Capy captcha type
+  """
+  capy
+
+  """
+  textCaptcha captcha type
+  """
+  textCaptcha
+
+  """
+  amazonWaf captcha type
+  """
+  amazonWaf
+
+  """
+  DataDome captcha type
+  """
+  datadome
+
+  """
+  Akamai Bot Manager captcha type
+  """
+  akamai
+
+  """
+  Lemin captcha type
+  """
+  lemin
+
+  """
+  mtCaptcha captcha type
+  """
+  mtcaptcha
+
+  """
+  Generic slider captcha type
+  """
+  slider
+
+  """
+  Audio captcha type (reCAPTCHA v2 audio accessibility fallback)
+  """
+  audio
+
+  """
+  FunCaptcha (Arkoselabs) captcha type
+  """
+  funcaptcha
+
+  """
+  Click captcha type (coordinate-based challenges)
+  """
+  click
+
+  """
+  Yandex SmartCaptcha type
+  """
+  yandex
+
+  """
+  Math captcha type (image containing a math expression to solve)
+  """
+  math
+
+  """
+  PerimeterX / HUMAN Press & Hold captcha type
+  """
+  perimeterx
+}
+
+"""
+Logical operators for APIs that have conditions
+"""
+enum OperatorTypes {
+  """
+  "and" logical operator
+  """
+  and
+
+  """
+  "or" logical operator
+  """
+  or
+}
+
+"""
+The Browserless proxy network to route matching requests through.
+"""
+enum ProxyNetwork {
+  """
+  Residential IP pool (default)
+  """
+  residential
+
+  """
+  Datacenter IP pool (cheaper, billed at 2 units/MB vs 6 units/MB for residential)
+  """
+  datacenter
+}
+
+"""
+Response returned after having clicked on an element
+"""
+type ClickResponse {
+  """
+  The selector text if specified
+  """
+  selector: String
+
+  """
+  The amount of time, in milliseconds, elapsed since the start of clicking to completion
+  """
+  time: Float
+
+  """
+  The X coordinate of the click, in pixels, on the page
+  """
+  x: Float
+
+  """
+  The Y coordinate of the click, in pixels, on the page
+  """
+  y: Float
+}
+
+enum CookiePriority {
+  Low
+  Medium
+  High
+}
+
+enum CookieSourceScheme {
+  Unset
+  NonSecure
+  Secure
+}
+
+input CookiePartitionKeyInput {
+  sourceOrigin: String!
+  hasCrossSiteAncestor: Boolean
+}
+
+"""
+The cookie to be sent to the page
+"""
+input CookieInput {
+  """
+  Cookie domain
+  """
+  domain: String
+
+  """
+  Cookie expiration date, session cookie if not set
+  """
+  expires: Float
+
+  """
+  True if cookie is http-only
+  """
+  httpOnly: Boolean
+
+  """
+  Cookie name
+  """
+  name: String!
+
+  """
+  Cookie path
+  """
+  path: String
+
+  priority: CookiePriority
+
+  sourceScheme: CookieSourceScheme
+
+  partitionKey: CookiePartitionKeyInput
+
+  """
+  Cookie SameSite type
+  """
+  sameSite: CookieSameSite
+
+  """
+  True if cookie is secure
+  """
+  secure: Boolean
+
+  """
+  The request-URI to associate with the setting of the cookie. This value can affect the default domain, path, source port, and source scheme values of the created cookie
+  """
+  url: String
+
+  """
+  Cookie value
+  """
+  value: String!
+}
+
+"""
+Options for cleaning up the DOM prior to exporting its content. Many options are available, and this query can destructively remove non-text DOM nodes, DOM attributes, and gratuitous whitespace characters. Since these operations are destructive in their nature it's recommended to run them at the very end of your query in order to preserve page functionality
+"""
+input CleanInput {
+  """
+  When true (default is true) this will remove non-textual nodes from the DOM like scripts, links, video, canvas, etc. You may override this by specifying a `selectors` argument for DOM selectors to remove.
+  """
+  removeNonTextNodes: Boolean = true
+
+  """
+  When true (default is false) this will remove all attributes on all DOM nodes. Useful for "cleaning" up all HTML markup but preserving the structure overall. You can specify specific attributes to remove with `attributes` argument
+  """
+  removeAttributes: Boolean = false
+
+  """
+  Removes any characters in the HTML by a regex pattern and arn in order. By default this is true and removes newlines, returns, tabs, multi-spaces and HTML comments in that order. You may supply your own regex by using the `regexes` argument
+  """
+  removeRegex: Boolean = true
+
+  """
+  A list of selectors to remove from the page when `removeNonTextNodes` is set to true (`true` by default).
+  """
+  selectors: [String!] = [
+    "area"
+    "audio"
+    "base"
+    "embed"
+    "head"
+    "iframe"
+    "img"
+    "link"
+    "meta"
+    "noscript"
+    "object"
+    "param"
+    "path"
+    "picture"
+    "script"
+    "source"
+    "style"
+    "svg"
+    "track"
+    "video"
+  ]
+
+  """
+  A list of attributes to remove from all DOM nodes. When this isn't specified, and `removeAttributes` is true, all attributes on all DOM nodes are removed. `removeNonTextNodes` must be set to `true` for this to take effect
+  """
+  attributes: [String]
+
+  """
+  Controls how the `attributes` field is interpreted. When set to "allow", the `attributes` field specifies which attributes to keep. When set to "deny" (default), the `attributes` field specifies which attributes to remove. Defaults to "deny" for backward compatibility.
+  """
+  mode: AttributeMode = DENY
+
+  """
+  When `removeRegex` is set to "true" this list of regex items, without the beginning and ending `/`, are removed from the page. These are each run in order and replaced with a single space character to preserve some of their contents
+  """
+  regexes: [String!] = [
+    # prettier-ignore
+    " +"
+    # prettier-ignore
+    "\n"
+    # prettier-ignore
+    "\r"
+    # prettier-ignore
+    "\t"
+    # prettier-ignore
+    "<\\!--.*?-->"
+  ]
+}
+
+"""
+A resource URL and its replacement archive path when rewriting HTML for export.
+"""
+input HTMLResourcePathInput {
+  """
+  The absolute resource URL found in the page.
+  """
+  url: String!
+
+  """
+  The relative path used for the resource in the exported archive.
+  """
+  path: String!
+}
+
+"""
+Options for rewriting page resource URLs before returning HTML.
+"""
+input HTMLRewriteInput {
+  """
+  The base URL used to resolve relative resource URLs.
+  """
+  baseURL: String!
+
+  """
+  The resources to rewrite from absolute URLs to archive-relative paths.
+  """
+  resources: [HTMLResourcePathInput!]!
+}
+
+"""
+The response returned after setting or getting cookies
+"""
+type CookieResponse {
+  """
+  A standard cookie object with the values of the set cookies
+  """
+  cookies: [StandardCookie]
+
+  """
+  The time it took to set and return the cookies
+  """
+  time: Float
+}
+
+"""
+The values a cookie's SameSite attribute can hold
+"""
+enum CookieSameSite {
+  """
+  Cookies are only sent in a first-party context and not sent along with requests initiated by third party websites
+  """
+  Strict
+
+  """
+  Cookies are withheld on cross-site sub-requests, such as calls to load images or frames, but are sent when a user navigates to the URL from an external site
+  """
+  Lax
+
+  """
+  Cookies are sent in all contexts, in responses to both first-party and cross-origin requests
+  """
+  None
+}
+
+"""
+Controls how the attributes field is interpreted in cleaning operations
+"""
+enum AttributeMode {
+  """
+  The attributes field specifies which attributes to keep (preserve only these)
+  """
+  ALLOW
+
+  """
+  The attributes field specifies which attributes to remove (remove only these)
+  """
+  DENY
+}
+
+"""
+Default response for all methods
+"""
+type DefaultResponse {
+  """
+  The default timeout for all methods. Default timeout is 30 seconds, or 30000.
+  """
+  timeout: Float
+}
+
+"""
+Response from window switching operation
+"""
+type SwitchWindowResponse {
+  success: Boolean!
+  error: String
+  title: String
+  url: String
+  navigation: HTTPResponse
+}
+
+"""
+Response returned after evaluating a script
+"""
+type EvaluateResponse {
+  """
+  The time it took for the evaluate call to happen
+  """
+  time: Float
+
+  """
+  The returned value of the script, if any
+  """
+  value: String
+}
+
+"""
+Holds the value of a either a float or a string
+"""
+scalar FloatOrString
+
+"""
+HTML content of a page
+"""
+type HTMLResponse {
+  """
+  The content of the page's HTML
+  """
+  html: String
+
+  """
+  The amount of time, in milliseconds, elapsed since the start of content retrieval to completion
+  """
+  time: Float
+}
+
+"""
+An object representing the header's name and underlying value
+"""
+type HTTPHeaders {
+  name: String
+  value: String
+}
+
+"""
+The response returned after setting HTTP headers
+"""
+type HTTPHeadersResponse {
+  """
+  The HTTP headers that were set
+  """
+  headers: [HTTPHeaders]
+
+  """
+  The time it took to set the HTTP headers
+  """
+  time: Float
+}
+
+"""
+The response returned after setting the User-Agent
+"""
+type UserAgentResponse {
+  """
+  The User-Agent string that was set
+  """
+  userAgent: String
+
+  """
+  The time it took to set the User-Agent
+  """
+  time: Float
+}
+
+"""
+Response returned after a navigation event
+"""
+type HTTPResponse {
+  """
+  The remote IP address that served the initial page-load response
+  """
+  ip: String
+
+  """
+  The remote port that served the initial page-load response
+  """
+  port: Int
+
+  """
+  The status code response of the initial page-load
+  """
+  status: Int
+
+  """
+  The amount of time, in milliseconds, elapsed since the start of navigation to completion
+  """
+  time: Float
+
+  """
+  The status text of the response from the initial page-load. Generally 'ok'
+  """
+  text: String
+
+  """
+  The final URL of the page after any potential redirects or URL rewrites
+  """
+  url: String
+}
+
+"""
+An object representing the header's name and underlying value
+"""
+type Headers {
+  name: String
+  value: String
+}
+
+"""
+Response returned from the request API
+"""
+type RequestResponse {
+  """
+  The final URL of the request
+  """
+  url: String
+
+  """
+  The HTTP method of the request
+  """
+  method: Method
+
+  """
+  The type of request that was made
+  """
+  type: ResourceType
+
+  """
+  The headers of the request
+  """
+  headers: [Headers]
+}
+
+"""
+Response returned from the response API
+"""
+type ResponseResponse {
+  """
+  The HTTP status code of the response
+  """
+  status: Int
+
+  """
+  The final URL of the response
+  """
+  url: String
+
+  """
+  The HTTP method of the request that facilitated the response
+  """
+  method: Method
+
+  """
+  The type of response that was received
+  """
+  type: ResourceType
+
+  """
+  The response headers returned
+  """
+  headers: [Headers]
+
+  """
+  The body of the response, represented as a string when possible or base64 for binary-type requests like images
+  """
+  body: String
+
+  """
+  Whether the response body is base64 encoded.
+  """
+  base64Encoded: Boolean!
+}
+
+"""
+Response returned after having hovered over an element
+"""
+type HoverResponse {
+  """
+  The selector text
+  """
+  selector: String
+
+  """
+  The amount of time, in milliseconds, elapsed since the start to completion
+  """
+  time: Float
+
+  """
+  The X coordinate in pixels, on the page
+  """
+  x: Float
+
+  """
+  The Y coordinate in pixels, on the page
+  """
+  y: Float
+}
+
+"""
+The response returned after enabling or disabling JavaScript on the page
+"""
+type JavaScriptResponse {
+  """
+  Whether or not JavaScript is enabled on the page
+  """
+  enabled: Boolean
+
+  """
+  The time it took to perform this action
+  """
+  time: Float
+}
+
+type Attribute {
+  name: String
+  value: String
+}
+
+"""
+Response returned from a Map Selector
+"""
+type MapSelectorResponse {
+  """
+  The innerHTML of the selected DOM Node
+  """
+  innerHTML: String
+
+  """
+  The innerText of the selected DOM Node, eg, the raw textual content
+  """
+  innerText: String
+
+  """
+  The ID attribute's value, if any, of the node
+  """
+  id: String
+
+  """
+  The class attribute's value, if any, of the node represented as an array of strings
+  """
+  class: [String]
+
+  """
+  Retrieve an attribute by the name of the attribute itself, eg, "data-test-id"
+  """
+  attribute(name: String): Attribute
+
+  """
+  You can further map nested DOM nodes as well. For instance, given a parent ".product" node, you can map further nodes like ".price" or ".shipping" as examples. This will give you items appropriately nested by their parent node for better hierarchical representation of data
+  """
+  mapSelector(
+    """
+    A query-selector-al compatible string, or JavaScript code that returns an DOM NodeList. Examples include:
+    - All `<button />` Elements:
+      `selector: "button"`
+
+    - A JavaScript snippet that returns a button element
+      `selector: "document.querySelectorAll('button')"`
+    """
+    selector: String!
+
+    """
+    How long to wait for the element to appear before timing out, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to wait for the selectors to present in the DOM
+    """
+    wait: Boolean = true
+  ): [MapSelectorResponse]
+}
+
+"""
+The various HTTP-based methods to wait for
+"""
+enum Method {
+  CONNECT
+  DELETE
+  GET
+  HEAD
+  OPTIONS
+  PATCH
+  POST
+  PUT
+  TRACE
+}
+
+"""
+The values a pdf's Size attribute can hold
+"""
+enum PDFPageFormat {
+  """
+  33.1102in x 46.811in
+  """
+  a0
+
+  """
+  23.3858in x 33.1102in
+  """
+  a1
+
+  """
+  16.5354in x 23.3858in
+  """
+  a2
+
+  """
+  11.6929in x 16.5354in
+  """
+  a3
+
+  """
+  8.2677in x 11.6929in
+  """
+  a4
+
+  """
+  5.8268in x 8.2677in
+  """
+  a5
+
+  """
+  4.1339in x 5.8268in
+  """
+  a6
+
+  """
+  8.5in x 14in
+  """
+  legal
+
+  """
+  8.5in x 11in
+  """
+  letter
+
+  """
+  17in x 11in
+  """
+  ledger
+
+  """
+  11in x 17in
+  """
+  tabloid
+}
+
+"""
+The response returned after generating a PDF
+"""
+type PDFResponse {
+  """
+  Base64 encoded PDF content
+  """
+  base64: String
+
+  """
+  The size of the resulting PDF in bytes
+  """
+  size: Float
+
+  """
+  The time it took to generate the PDF
+  """
+  time: Float
+}
+
+"""
+The response from the Live-URL query
+"""
+type LiveURLResponse {
+  """
+  A unique ID representing the session. Useful for storing and associations in other APIs
+  """
+  liveURLId: String
+
+  """
+  The fully-qualified URL to share with the end-user to allow them to live-stream the browser
+  """
+  liveURL: String
+
+  """
+  How long (ms) the Live URL stays valid. Equal to the requested timeout, or to the session's remaining time when that is shorter
+  """
+  timeout: Float
+}
+
+"""
+The response returned after querying the page for a selector
+"""
+type QuerySelectorResponse {
+  """
+  The Element.childElementCount read-only property returns the number of child elements of this element
+  """
+  childElementCount: Float
+
+  """
+  The className property of the Element interface gets and sets the value of the class attribute of the specified element
+  """
+  className: String
+
+  """
+  The id property of the Element interface represents the element's identifier, reflecting the id global attribute
+  """
+  id: String
+
+  """
+  The Element property innerHTML gets the HTML or XML markup contained within the element
+  """
+  innerHTML: String
+
+  """
+  The Element property innerText gets the text contained within the element
+  """
+  innerText: String
+
+  """
+  The Element.localName read-only property returns the local part of the qualified name of an element
+  """
+  localName: String
+
+  """
+  The outerHTML attribute of the Element DOM interface gets the serialized HTML fragment describing the element including its descendants. It can also be set to replace the element with nodes parsed from the given string
+  """
+  outerHTML: String
+}
+
+"""
+The response received after attempting to reconnect a BrowserQL session
+"""
+type ReconnectionResponse {
+  """
+  The fully-qualified URL to reconnect future BrowserQL sessions, eg: https://chrome.browserless.io/bql/$id. Please note that token information is not returned by this API and might be required
+  """
+  browserQLEndpoint: String
+
+  """
+  The fully-qualified URL of the browserWSEndpoint which can be used with other libraries like playwright or puppeteer. Please note that token information is not returned by this API and might be required
+  """
+  browserWSEndpoint: String
+
+  """
+  The fully-qualified URL of the devtools resources for loading Chrome's developer tools remotely
+  """
+  devtoolsFrontendUrl: String
+
+  """
+  The underlying page's webSocketDebuggerUrl, useful for hooking libraries that operate on a page and not a browser object
+  """
+  webSocketDebuggerUrl: String
+}
+
+"""
+The response received after stopping session recording
+"""
+type StopSessionRecordingResponse {
+  """
+  Whether the recording was successfully stopped and uploaded
+  """
+  success: Boolean
+
+  """
+  Error message if the operation failed
+  """
+  error: String
+}
+
+"""
+The response parameters for the reject mutation
+"""
+type RejectResponse {
+  time: Float
+  enabled: Boolean
+}
+
+"""
+The specific request to perform a conditional action on
+"""
+input RequestInput {
+  """
+  The HTTP Method of the request
+  """
+  method: Method
+
+  """
+  The pattern of the request URL to wait for, using glob-style pattern-matching
+  """
+  url: String
+}
+
+"""
+The type of resource for a given network or HTTP request
+"""
+enum ResourceType {
+  cspviolationreport
+  document
+  eventsource
+  fetch
+  font
+  image
+  manifest
+  media
+  other
+  ping
+  prefetch
+  preflight
+  script
+  signedexchange
+  stylesheet
+  texttrack
+  websocket
+  xhr
+}
+
+"""
+The specific response to perform a conditional action on
+"""
+input ResponseInput {
+  """
+  The HTTP Response code(s) of the URL to wait for. Can be a single HTTP code or a list of desired codes
+  """
+  statuses: [Int]
+
+  """
+  The HTTP Response code(s) of the URL to wait for. Can be a single HTTP code or a list of desired codes
+  """
+  codes: [Int]
+    @deprecated(
+      reason: "Use `statuses` field instead as it is more consistent in BrowserQL."
+    )
+
+  """
+  The pattern of the response URL to wait for, using glob-style pattern-matching
+  """
+  url: String
+}
+
+"""
+Response returned after having scrolling inside the page
+"""
+type ScrollResponse {
+  """
+  The CSS selector of the element on the page you want to scroll to
+  """
+  selector: String
+
+  """
+  The amount of time, in milliseconds, elapsed since the start of scrolling to completion
+  """
+  time: Float
+
+  """
+  The X coordinate, in pixels, to scroll to
+  """
+  x: Float
+
+  """
+  The Y coordinate, in pixels, to scroll to
+  """
+  y: Float
+}
+
+"""
+The clipping to be applied to the screenshot
+"""
+input ScreenshotClip {
+  """
+  The height of the clip, in pixels
+  """
+  height: Float
+
+  """
+  The scale factor of the clip
+  """
+  scale: Float
+
+  """
+  The width of the clip, in pixels
+  """
+  width: Float
+
+  """
+  The x coordinate to start clipping, in pixels
+  """
+  x: Float
+
+  """
+  The y coordinate to start clipping, in pixels
+  """
+  y: Float
+}
+
+"""
+The response returned after generating a Screenshot
+"""
+type ScreenshotResponse {
+  """
+  The base64 encoded image of the screenshot
+  """
+  base64: String
+
+  """
+  The format of the screenshot
+  """
+  format: String
+
+  """
+  The time it took to take the screenshot
+  """
+  time: Float
+}
+
+"""
+The different types of screenshot formats
+"""
+enum ScreenshotType {
+  """
+  JPEG image format
+  """
+  jpeg
+
+  """
+  PNG image format
+  """
+  png
+
+  """
+  WebP image format
+  """
+  webp
+}
+
+"""
+The response returned after selecting a value from a dropdown or multiple select element
+"""
+type SelectResponse {
+  """
+  The selector of the element you selected from
+  """
+  selector: String
+
+  """
+  The amount of time, in milliseconds, elapsed since the start of selecting to completion
+  """
+  time: Float
+
+  """
+  The value or values you selected from the select element
+  """
+  value: StringOrArray
+}
+
+"""
+A standard cookie
+"""
+type StandardCookie {
+  """
+  Cookie domain
+  """
+  domain: String
+
+  """
+  Cookie expiration date, session cookie if not set
+  """
+  expires: Float
+
+  """
+  True if cookie is http-only
+  """
+  httpOnly: Boolean
+
+  """
+  Cookie name
+  """
+  name: String!
+
+  """
+  Cookie path
+  """
+  path: String
+
+  """
+  Cookie SameSite type
+  """
+  sameSite: CookieSameSite
+
+  """
+  True if cookie is secure
+  """
+  secure: Boolean
+
+  """
+  Cookie value
+  """
+  value: String!
+
+  """
+  The request-URI to associate with the setting of the cookie. This value can affect the default domain, path, source port, and source scheme values of the created cookie
+  """
+  url: String
+}
+
+"""
+Holds the value of a either a string or an array of strings
+"""
+scalar StringOrArray
+
+"""
+Live URL instructions: a string, or an object with layout (modal|panel), format
+(text|markdown), title, summary, steps and currentStep. Validated by the server.
+Existing String-typed instruction variables must use StringOrInstructions instead.
+"""
+scalar StringOrInstructions
+
+"""
+Text content of a page
+"""
+type TextResponse {
+  """
+  The textual content of the page
+  """
+  text: String
+
+  """
+  The amount of time, in milliseconds, elapsed since the start of text retrieval to completion
+  """
+  time: Float
+}
+
+"""
+Response returned after the page's title has been set or get
+"""
+type TitleResponse {
+  """
+  The title of the current page
+  """
+  title: String
+}
+
+"""
+Response returned after having typed into an element
+"""
+type TypeResponse {
+  """
+  The selector of the element you typed into
+  """
+  selector: String
+
+  """
+  The textual content that was typed
+  """
+  text: String
+
+  """
+  The amount of time, in milliseconds, elapsed since the start of typing to completion
+  """
+  time: Float
+
+  """
+  The X coordinate of the element, in pixels, on the page
+  """
+  x: Float
+
+  """
+  The Y coordinate of the element, in pixels, on the page
+  """
+  y: Float
+}
+
+"""
+Response returned after attempting to fill a credential resolved from a
+1Password integration. The resolved value is never included in the response.
+"""
+type LoadSecretResponse {
+  """
+  Whether the credential was resolved and filled into the target element.
+  """
+  ok: Boolean!
+
+  """
+  Error code when ok is false: DomainNotAllowed, SelectorNotFound,
+  NoFocusedElement, TargetNotFillable, CredentialNotResolved,
+  CredentialIntegrationExpired, VaultUnreachable, or AuditWriteFailed.
+  """
+  error: String
+
+  """
+  Human-readable explanation when ok is false.
+  """
+  message: String
+
+  """
+  The amount of time, in milliseconds, the operation took.
+  """
+  time: Float
+}
+
+"""
+Response returned after the URL of the page has been set or get
+"""
+type URLResponse {
+  """
+  The URL of the current page
+  """
+  url: String
+}
+
+"""
+Response returned after a verification method has been bypassed
+"""
+type VerifyResponse {
+  """
+  If a verification was found or not
+  """
+  found: Boolean
+
+  """
+  If a verification was found, whether or not it was clicked
+  """
+  solved: Boolean
+
+  """
+  The total time it took to find, and click, the verification
+  """
+  time: Float
+}
+
+"""
+The different types of verification methods that can be bypassed
+"""
+enum VerifyTypes {
+  """
+  Cloudflare protection
+  """
+  cloudflare
+}
+
+"""
+Response returned after a particular network request has been sent
+"""
+type WaitForRequest {
+  """
+  The period of time elapsed, in milliseconds, waited for
+  """
+  time: Float
+
+  """
+  The URL parameter used to match the response with
+  """
+  url: String
+}
+
+"""
+Response returned after a particular network response has been received
+"""
+type WaitForResponse {
+  """
+  The period of time elapsed, in milliseconds, waited for
+  """
+  time: Float
+
+  """
+  The status code response of the response
+  """
+  status: Int
+
+  """
+  The URL parameter used to match the response with
+  """
+  url: String
+}
+
+"""
+Response returned after a particular selector has been found in the DOM
+"""
+type WaitForSelector {
+  """
+  The height, in pixels, of the element
+  """
+  height: Float
+
+  """
+  The selector waited for
+  """
+  selector: String
+
+  """
+  The period of time elapsed, in milliseconds, waited for
+  """
+  time: Float
+
+  """
+  The position, in pixels, top of the viewport
+  """
+  y: Float
+
+  """
+  The position, in pixels, left of the viewport
+  """
+  x: Float
+
+  """
+  The width, in pixels, of the element
+  """
+  width: Float
+}
+
+"""
+Response returned after having waited for a selector to appear in the DOM
+"""
+type WaitForTimeout {
+  """
+  The period of time elapsed, in milliseconds, waited for
+  """
+  time: Float
+}
+
+"""
+Response returned after having waited for a JavaScript predicate to become truthy
+"""
+type WaitForFunction {
+  """
+  The period of time elapsed, in milliseconds, waited for
+  """
+  time: Float
+}
+
+"""
+Response returned after having waited for an event to fire on the page
+"""
+type WaitForEvent {
+  """
+  The period of time elapsed, in milliseconds, waited for
+  """
+  time: Float
+}
+
+"""
+Response returned after setting the viewport
+"""
+type ViewportResponse {
+  """
+  The width of the viewport in pixels
+  """
+  width: Float
+
+  """
+  The height of the viewport in pixels
+  """
+  height: Float
+
+  """
+  The device scale factor
+  """
+  deviceScaleFactor: Float
+
+  """
+  Whether the device is in mobile mode
+  """
+  mobile: Boolean
+
+  """
+  Whether the viewport supports touch events
+  """
+  hasTouch: Boolean
+
+  """
+  Whether the viewport is in landscape orientation
+  """
+  landscape: Boolean
+
+  """
+  The time it took to set the viewport
+  """
+  time: Float
+}
+
+"""
+Options for when to consider the page has loaded and proceed with further execution
+"""
+enum WaitUntilGoto {
+  """
+  Fired when network response is received and the document has started loading
+  """
+  commit
+
+  """
+  Fired when the JavaScript 'load' event occurs
+  """
+  load
+
+  """
+  Fired when the DOMContentLoaded event is fired
+  """
+  domContentLoaded
+
+  """
+  Indicates when the primary content of a page is visible to the user
+  """
+  firstMeaningfulPaint
+
+  """
+  The render time of the largest image or text block visible in the viewport, relative to when the user first navigated to the page
+  """
+  firstContentfulPaint
+
+  """
+  Use with caution: Chrome's best guess as to when the page becomes interactable
+  """
+  interactiveTime
+
+  """
+  Use with caution: Fired when there are no more than 2 network connections for at least 500 ms
+  """
+  networkIdle
+}
+
+"""
+The different stages of the browser's loading process
+"""
+enum WaitUntilHistory {
+  """
+  Fired when network response is received and the document started loading
+  """
+  commit
+
+  """
+  Fired when the DOMContentLoaded event is fired
+  """
+  domContentLoaded
+
+  """
+  Fired when the 'load' event occurs
+  """
+  load
+
+  """
+  Use with caution: Fired when there are no network connections for at least 500 ms
+  """
+  networkIdle
+}
+
+"""
+Browser-driven polling modes for waitForFunction
+"""
+enum WaitForFunctionPolling {
+  """
+  Evaluate on each animation frame
+  """
+  raf
+
+  """
+  Evaluate after DOM mutations
+  """
+  mutation
+}
+
+"""
+The CSS media type to emulate for the page
+"""
+enum MediaType {
+  """
+  Emulate on-screen rendering
+  """
+  screen
+
+  """
+  Emulate print rendering
+  """
+  print
+}
+
+"""
+Response returned after emulating a CSS media type
+"""
+type EmulateMediaTypeResponse {
+  """
+  The media type that was emulated
+  """
+  type: String
+
+  """
+  The period of time elapsed, in milliseconds
+  """
+  time: Float
+}
+
+"""
+Response returned after injecting a script tag
+"""
+type AddScriptTagResponse {
+  """
+  The period of time elapsed, in milliseconds
+  """
+  time: Float
+}
+
+"""
+Response returned after injecting a style tag
+"""
+type AddStyleTagResponse {
+  """
+  The period of time elapsed, in milliseconds
+  """
+  time: Float
+}
+
+"""
+Response returned after registering a request-fulfillment interceptor
+"""
+type FulfillResponse {
+  """
+  The period of time elapsed, in milliseconds
+  """
+  time: Float
+}
+
+"""
+Response returned after converting the page content to Markdown
+"""
+type MarkdownResponse {
+  """
+  The page content converted to Markdown
+  """
+  markdown: String
+
+  """
+  The period of time elapsed, in milliseconds
+  """
+  time: Float
+}
+
+"""
+Below is a list of all available API options for the service. Click on an API for options, examples, and even argument details.
+
+For more comprehensive examples and recipes, [see our documentation site here](https://docs.browserless.io/).
+"""
+type Mutation {
+  """
+  Provides credentials for HTTP authentication (RFC 7235). When set, any HTTP
+  authentication challenge (401/407) will be answered with the supplied
+  credentials automatically. If an `origin` is provided, only challenges whose
+  origin matches will use these credentials; otherwise every challenge is
+  answered (Puppeteer-style).
+
+  **Usage Example — authenticate all requests:**
+  ```graphql
+  mutation AuthenticateAndNavigate {
+    authenticate(username: "user", password: "pass") {
+      time
+    }
+
+    goto(url: "https://httpbin.org/basic-auth/user/pass") {
+      status
+      url
+    }
+  }
+  ```
+
+  **Usage Example — scope credentials to a specific origin:**
+  ```graphql
+  mutation AuthenticateProxy {
+    authenticate(
+      username: "proxyUser"
+      password: "proxyPass"
+      origin: "http://my-proxy.example.com:8080"
+    ) {
+      time
+    }
+
+    goto(url: "https://example.com") {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  authenticate(
+    """
+    The username to authenticate with
+    """
+    username: String!
+
+    """
+    The password to authenticate with
+    """
+    password: String!
+
+    """
+    The origin of the requests needing authentication, specified as a full
+    HTTP origin in `protocol://host(:port)` format (e.g.
+    `https://example.com`). If not provided, every request needing
+    authentication will use the provided credentials.
+    """
+    origin: String
+  ): HTTPResponse
+
+  """
+  Goes back in browser history, optionally accepting waitUntil and timeout arguments. Returns null if no back is possible
+
+  **Usage Example:**
+  ```graphql
+  mutation GoBack {
+    firstNav: goto(url: "https://example.com") {
+      time
+    }
+
+    secondNav: goto(url: "https://browserless.com") {
+      time
+    }
+
+    back(waitUntil: domContentLoaded) {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  back(
+    """
+    The maximum amount of time, in milliseconds, to wait for the page to load, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    When to consider the page fully-loaded and proceed with further execution
+    """
+    waitUntil: WaitUntilHistory = load
+  ): HTTPResponse
+
+  """
+  Sets or un-sets the value of a checkbox on the page
+
+  **Usage Example:**
+  ```graphql
+  mutation ClickCheckbox {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    checkbox(
+      checked: true
+      selector: "input[type='checkbox']"
+    ) {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  checkbox(
+    """
+    Whether or not the input should be checked
+    """
+    checked: Boolean!
+
+    """
+    The CSS selector of the element on the page you want to check/uncheck
+    """
+    selector: String!
+
+    """
+    Whether or not to scroll to the element prior to clicking, defaults to true
+    """
+    scroll: Boolean = true
+
+    """
+    How long to wait for the element to appear before timing out on the handler, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to check/uncheck the element only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Whether or not to wait for the element to present in the DOM
+    """
+    wait: Boolean = true
+  ): ClickResponse
+
+  """
+  Waits for the element to be visible, scrolls to it, then clicks on it with native events
+
+  **Usage Example:**
+  ```graphql
+  mutation ClickButton {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    click(selector: "a") {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  click(
+    """
+    A query-selector compatible string, JavaScript that returns an HTML Node, OR a Browserless-deep query. Examples include:
+    - A simple `<button />` Element:
+      `selector: "button"`
+
+    - A JavaScript snippet that returns a button element
+      `selector: "document.querySelector('button')"`
+
+    - A Browserless Deep query. These queries must start with a "<" character.
+      Deep queries will traverse all iframes, shadow-doms (open or closed), and more.
+      Basic deep query:
+      `selector: "< button"`
+
+    Advanced deep query features:
+    - URL Pattern Matching: Target elements within specific iframes using glob patterns
+      `selector: "< https://example.com/* button.active"`
+      `selector: "< *google.com/recaptcha* #recaptcha-anchor"`
+
+    - Complex Selectors: Combine multiple attributes, classes, and IDs
+      `selector: "< input#username.login-form[type='text'][data-test-id*='user']"`
+
+    - Attribute Matching: Use various attribute matching operators
+      - Contains (*): `[data-test*="partial"]`
+      - Starts with (^): `[class^="prefix-"]`
+      - Ends with ($): `[id$="-suffix"]`
+      - Exact match: `[type="submit"]`
+      - Presence only: `[required]`
+
+    - Class and ID Combinations:
+      `selector: "< button#submit.primary.large[data-action='save']"`
+
+    For reCAPTCHA interactions, you can use deep selectors to target elements within the reCAPTCHA iframe:
+    `selector: "< *google.com/recaptcha* #recaptcha-anchor"`
+
+    Note: Deep selectors support standard CSS selector syntax while maintaining security by disallowing potentially dangerous characters and patterns.
+    """
+    selector: String!
+
+    """
+    Whether or not to scroll to the element prior to clicking, defaults to true
+    """
+    scroll: Boolean = true
+
+    """
+    How long to wait for the element to appear before timing out on the click handler, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to click the element only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Whether or not to wait for the element to present in the DOM
+    """
+    wait: Boolean = true
+  ): ClickResponse
+
+  """
+  Sets the given HTML content on the page with an optional waitUntil parameter
+
+  **Usage Example:**
+  ```graphql
+  mutation SetContent {
+    content(html: "<h1>Hello, World!</h1>") {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  content(
+    """
+    When present, sets the content of page to the value passed, then returns the pages content
+    """
+    html: String!
+
+    """
+    The maximum amount of time, in milliseconds, to wait for the content to load, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    When to consider the page fully-loaded and proceed with further execution, used in conjunction with the value parameter
+    """
+    waitUntil: WaitUntilHistory
+
+    """
+    Wait for every listed lifecycle event. Use this instead of waitUntil when preserving an ordered REST array contract.
+    """
+    waitUntilAll: [WaitUntilHistory!]
+  ): HTTPResponse
+
+  """
+  Sets and gets cookies on the page
+
+  **Usage Example:**
+  ```graphql
+  mutation SetCookies {
+    # Get the cookies on the page
+    getCookies: cookies {
+      cookies {
+        name
+        value
+      }
+    }
+
+    # Set a cookie on the page
+    setCookies: cookies(cookies: [
+        {
+          name: "my-cookie"
+          value: "my-value"
+          url: "https://example.com"
+        }
+    ]) {
+      cookies {
+        name
+        value
+      }
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  cookies(
+    """
+    The cookies to set on the page
+    """
+    cookies: [CookieInput]
+  ): CookieResponse
+
+  """
+  Evaluates JavaScript client-side, via raw content or a URL to some JavaScript code, in the browser's page environment
+
+  **Usage Example:**
+  ```graphql
+  mutation EvaluateScript {
+    byContent: evaluate(content: "2 + 2") {
+      value
+    }
+
+    byUrl: evaluate(url: "https://example.com/script.js") {
+      value
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  evaluate(
+    """
+    The raw script you'd like to evaluate. This code gets wrapped in an async function so you can use `return` at the end as well as `await` and other async concepts. You can return any stringified value from this function
+    """
+    content: String
+
+    """
+    A timeout to wait for the script to finish evaluating, overriding any defaults. Useful for async scripts that may be longer running. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    The URL of the script you'd like to evaluate. This code gets wrapped in an async function so you can use `return` at the end as well as `await` and other async
+    concepts. You can return any stringified value from this function
+    """
+    url: String
+  ): EvaluateResponse
+
+  """
+  Goes forward in browser history, optionally accepting waitUntil and timeout arguments. Returns null if no forward is possible
+
+  **Usage Example:**
+  ```graphql
+  mutation GoForward {
+    firstNav: goto(url: "https://example.com", waitUntil: load) {
+      time
+    }
+
+    secondNav: goto(url: "https://browserless.io", waitUntil: load) {
+      time
+    }
+
+    back(waitUntil: domContentLoaded) {
+      status
+    }
+
+    forward(waitUntil: domContentLoaded) {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  forward(
+    """
+    The maximum amount of time, in milliseconds, to wait for the page to load, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    When to consider the page fully-loaded and proceed with further execution
+    """
+    waitUntil: WaitUntilHistory = load
+  ): HTTPResponse
+
+  """
+  Navigates to a URL with an optional waitUntil parameter and timeout parameter
+
+  **Usage Example:**
+  ```graphql
+  mutation NavigateToPage {
+    goto(url: "https://example.com") {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  goto(
+    """
+    The fully-qualified URL of the page you'd like to navigate to
+    """
+    url: String!
+
+    """
+    The maximum amount of time, in milliseconds, to wait for the page to load, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    When to consider the page fully-loaded and proceed with further execution
+    """
+    waitUntil: WaitUntilGoto = load
+
+    """
+    Wait for every listed lifecycle event. This preserves Puppeteer waitUntil array semantics.
+    """
+    waitUntilAll: [WaitUntilGoto!]
+
+    """
+    The Referer header to send with the navigation request
+    """
+    referer: String
+
+    """
+    The referrer policy to use for the navigation request
+    """
+    referrerPolicy: String
+  ): HTTPResponse
+
+  """
+  Returns the HTML content of the page or selector when specified. This API can also "clean" HTML markup returned by specifying a "clean" argument with numerous options. Features of the "clean" argument include removal of non-text nodes, removal of DOM attributes, as well as removal of excessive whitespace and newlines. Using "clean" can save nearly 1,000 times the payload size. Useful for LLM's and other scenarios
+
+  **Usage Example:**
+  ```graphql
+  mutation ExtractHTML {
+    goto(url: "https://example.com") {
+      status
+    }
+    html(selector: "h1") {
+      html
+    }
+  }
+  ```
+
+  Remove non-text DOM nodes and all Node attributes, but preserve the DOM tree
+  ```graphql
+  mutation ExtractHTML {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    html(clean: {
+      removeAttributes: true
+      removeNonTextNodes: true
+    }) {
+      html
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  html(
+    """
+    The DOM selector of the given element you want to return the HTML of
+    """
+    selector: String
+
+    """
+    The maximum amount of time, in milliseconds, to wait for the selector to appear, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to return the HTML content of the element only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Specifies conditions for "cleaning" HTML, useful for minimizing the amount of markup returned for cases like LLMs and more. See nested options for parameters.
+    """
+    clean: CleanInput
+
+    """
+    Rewrites captured resource URLs to archive-relative paths before returning HTML.
+    """
+    rewrite: HTMLRewriteInput
+  ): HTMLResponse
+
+  """
+  Sets the HTTP headers for the page
+
+  **Usage Example:**
+  ```graphql
+  mutation SetExtraHTTPHeaders {
+    setExtraHTTPHeaders(headers: [
+      {name: "x-browserless-secret-header", value: "55"},
+      {name: "x-browserless-ping", value: "pong"}
+    ]) {
+      time
+    }
+    goto(url: "https://example.com") {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  setExtraHTTPHeaders(
+    """
+    The HTTP headers to set on the page
+    """
+    headers: [HeaderInput]
+  ): HTTPHeadersResponse
+
+  """
+  Sets the User-Agent string for the browser session
+
+  **Usage Example:**
+  ```graphql
+  mutation SetUserAgent {
+    userAgent(userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15") {
+      userAgent
+      time
+    }
+    goto(url: "https://example.com") {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  userAgent(
+    """
+    The User-Agent string to set for the browser session
+    """
+    userAgent: String!
+  ): UserAgentResponse
+
+  """
+  Waits for the element to be visible, scrolls to it, then hover on it with native events
+
+  **Usage Example:**
+  ```graphql
+  mutation HoverElement {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    hover(selector: "a") {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  hover(
+    """
+    Whether or not to scroll to the element, defaults to true
+    """
+    scroll: Boolean = true
+
+    """
+    The CSS selector of the element on the page you want to hover on
+    """
+    selector: String
+
+    """
+    How long to wait for the element to appear before timing out, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to hover on the element only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Whether or not to wait for the element to present in the DOM
+    """
+    wait: Boolean = true
+
+    """
+    The X coordinate, in pixels, to hover on the page
+    """
+    x: Float
+
+    """
+    The Y coordinate, in pixels, to hover on the page
+    """
+    y: Float
+  ): HoverResponse
+
+  """
+  Triggers a nested branch of work when a given condition is `true`. Does not wait for these items and is a point-in-time check. Use the wait method if you're wanting to await certain behaviors to be present
+
+  **Usage Example:**
+  ```graphql
+  mutation ConditionalRequest {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    # Will only trigger the screenshot if the h1 is present
+    if(selector: "h1") {
+      screenshot {
+        base64
+      }
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  if(
+    """
+    When applying arguments like URL or method, this operator will either "and" them together, or "or" them together. Default is "or"
+    """
+    operator: OperatorTypes = or
+
+    """
+    Triggers the nested conditions if a request has been made with the following conditions
+    """
+    request: RequestInput
+
+    """
+    Triggers the nested conditions if a response has been received with the following conditions
+    """
+    response: ResponseInput
+
+    """
+    Triggers the subsequent conditions if the selector is immediately present
+    """
+    selector: String
+
+    """
+    When using selectors in conditionals this options sets whether their or not to consider if they're visible to the viewport
+    """
+    visible: Boolean = false
+  ): Mutation
+
+  """
+  Triggers a nested branch of work when a given condition is `false`. This method does not wait for these items and is a point-in-time check. Use the wait method if you're wanting to await certain behaviors to be present
+
+  **Usage Example:**
+  ```graphql
+  mutation ConditionalRequestNot {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    # Will only trigger the screenshot if the h2 is not present
+    ifnot(selector: "h2") {
+      screenshot {
+        base64
+      }
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  ifnot(
+    """
+    When applying arguments like URL or method, this operator will either "and" them together, or "or" them together. Default is "or"
+    """
+    operator: OperatorTypes = or
+
+    """
+    Triggers the nested conditions if a request has been made with the following conditions
+    """
+    request: RequestInput
+
+    """
+    Triggers the nested conditions if a response has been received with the following conditions
+    """
+    response: ResponseInput
+
+    """
+    Triggers the subsequent conditions if the selector is immediately present
+    """
+    selector: String
+  ): Mutation
+
+  """
+  Sets and gets JavaScript execution on the page
+
+  **Note: changing this value won't affect scripts that have already been run. It will take full effect on the next navigation.**
+
+  **Usage Example:**
+  ```graphql
+  mutation EnableJavaScript {
+    status: javaScriptEnabled {
+      enabled
+    }
+
+    disable: javaScriptEnabled(enabled: false) {
+      enabled
+    }
+
+    enable: javaScriptEnabled(enabled: true) {
+      enabled
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  javaScriptEnabled(
+    """
+    Whether or not to enable JavaScript on the page
+    """
+    enabled: Boolean
+  ): JavaScriptResponse
+
+  """
+  Returns a fully-qualified, user-shareable live-URL for streaming the web-browser to an end-user, optionally interactive.
+
+  **Set 30 second timer for interaction**
+  ```graphql
+  mutation CreateLiveURL {
+    goto(url: "https://example.com") {
+      status
+    }
+    liveURL {
+      liveURL
+    }
+  }
+  ```
+
+  **Maintain the current browsers viewport and don't resize it**
+  ```graphql
+  mutation CreateLiveURL {
+    goto(url: "https://example.com") {
+      status
+    }
+    liveURL(resizable: false) {
+      liveURL
+    }
+  }
+  ```
+
+  **Don't allow interaction at all**
+  ```graphql
+  mutation CreateLiveURL {
+    goto(url: "https://example.com") {
+      status
+    }
+    liveURL(interactable: false) {
+      liveURL
+    }
+  }
+  ```
+
+  **Low quality for better bandwidth**
+  ```graphql
+  mutation CreateLiveURL {
+    goto(url: "https://example.com") {
+      status
+    }
+    liveURL(quality: 20 type: jpeg) {
+      liveURL
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  liveURL(
+    """
+    Encoded backing pixels per CSS pixel. Must be 1 or 2. Defaults to 1; 2 increases stream resolution without changing the page's CSS viewport.
+    """
+    captureScale: Int = 1
+
+    """
+    The maximum time allowed for the browser to remain alive. Once the time is reached, the end-user will receive a prompt that the session has closed. Capped to the session's remaining time; the applied value is returned as `timeout`.
+    """
+    timeout: Float
+
+    """
+    Whether the session is interactable or not. Set to "false" to not allow click and mouse events to be forwarded through to the end-user
+    """
+    interactable: Boolean = true
+
+    """
+    The binary-type of the streamed imaged. "jpeg" will consumer lower bandwidth and useful low bandwidth networks and devices. "png" is a much higher quality but will consume considerably more bandwidth.
+
+    Use "jpeg" when setting a custom quality
+    """
+    type: LiveURLStreamType = jpeg
+
+    """
+    The quality of the stream, represented as number from 1 - 100. Only used when "type" is "jpeg". Default is 70.
+    """
+    quality: Int = 70
+
+    """
+    Whether or not to resize the underlying browser to match the end-user's screen size. When `false` the underlying browser will retain it's current viewport, and the end users's screen wil maintain the appropriate aspect ratio.
+    """
+    resizable: Boolean = true
+
+    """
+    Whether to show the browser interface and tabs in the live URL. When `false` (default), only the browser content is shown. When `true`, navigation bar and tabs are displayed.
+    """
+    showBrowserInterface: Boolean = false
+
+    """
+    Whether to compress each frame of the streamed image data. When `true` (default), frames are compressed to reduce bandwidth usage. Set to `false` to disable compression for lower latency at the cost of increased bandwidth usage.
+    """
+    compressed: Boolean = true
+
+    """
+    Whether to emulate HTML components such as `<select>` dropdowns and the virtual keyboard. Setting this to `false` will force the virtual keyboard to not appear on the end-user's screen when interacting with input fields. Defaults to `true`.
+    """
+    emulateComponents: Boolean = true
+
+    """
+    Instructions layout: modal (default) overlays the page; panel reserves an always-visible 340px right-hand column when instructions are non-empty and interactable is true. The panel has no desktop hide control. Viewers 900px wide or narrower use the collapsible mobile treatment, with Done reachable when hidden. Panel mode hides instructions on read-only links.
+    """
+    instructionsLayout: InstructionsLayout = modal
+
+    """
+    A plain string or an instructions object: layout (modal|panel), format (text|markdown), title (80 characters), summary (2048-character cap), steps (up to 10 non-empty strings, 300 characters each), and currentStep (1-based). Object layout overrides instructionsLayout. Text is trimmed; omitted or blank text with no steps hides the card. Variables must use StringOrInstructions, not String.
+    """
+    instructions: StringOrInstructions
+    """
+    Opt-in inline formatting; defaults to plain text.
+    """
+    instructionsFormat: InstructionsFormat = text
+    """
+    Card title, at most 80 characters.
+    """
+    instructionsTitle: String
+    """
+    At most 10 non-empty steps, each at most 300 characters.
+    """
+    steps: [String!]
+    """
+    Current step, a whole number from 1 through the number of steps.
+    """
+    currentStep: Int
+    """
+    Done button label, at most 40 characters.
+    """
+    doneLabel: String
+    """
+    Failure button label, at most 40 characters.
+    """
+    failLabel: String
+    """
+    Requester name, at most 60 characters.
+    """
+    requesterName: String
+  ): LiveURLResponse
+
+  """
+  Specify a selector that returns multiple nodes in a document (similar to `document.querySelectorAll`), or JavaScript that returns a NodeList, and this API will respond with details about those DOM nodes. Similar to how "map" works in most functional programming languages and libraries. Useful for mapping over repetitive data in sites and pages like product listings or search results. This will automatically wait for the selector to be present on the page, and is configurable with the "wait" and "timeout" options.
+
+  For getting arbitrary DOM attributes back you can specify them via the `attribute(name: "data-custom-attribute")` property. This will return an object with `name` and `value` properties.
+
+  You may also continuously map further nested items as well, for instance this query might get all books on a page, and then a nested `mapSelector` call might list all sellers of that book, or shipping speeds. Hierarchy of data is preserved to pass through the hierarchical data modeled inside the DOM.
+
+  This API will always return a list of results back regardless if one or more items are found, or `null` if none are found.
+
+  Using aliases can also give the returned JSON more meaning and better model the data returned by this powerful API.
+
+  **Simple Example**
+  ```graphql
+  mutation GetHNLinks {
+    goto(url: "https://news.ycombinator.com") {
+      status
+    }
+
+    # Get all the top links HTML
+    mapSelector(selector: ".athing") {
+      innerHTML
+    }
+  }
+  ```
+
+  **Nested Example With Aliases**
+  ```graphql
+  mutation GetHNLinksWithMetaData {
+    goto(url: "https://news.ycombinator.com") {
+      status
+    }
+
+    # Get all textual content
+    posts: mapSelector(selector: ".athing") {
+      postName: innerText
+
+      # Get the author(s)
+      authors: mapSelector(selector: ".author") {
+        authorName: innerText
+      }
+
+      # Get the post score
+      score: mapSelector(selector: ".score") {
+        score: innerText
+      }
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  mapSelector(
+    """
+    A `document.querySelectorAll` compatible string, or JavaScript that returns a DOM NodeList. Examples include:
+    - A list of `<button />` Elements:
+      `selector: "button"`
+
+    - A JavaScript snippet that returns a button element
+      `selector: "document.querySelectorAll('button')"`
+    """
+    selector: String!
+
+    """
+    How long to wait for the element to appear before timing out, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to wait for the selectors to present in the DOM
+    """
+    wait: Boolean = true
+  ): [MapSelectorResponse]
+
+  """
+  Generates a PDF of the page with the print CSS media type
+
+  **Usage Example:**
+  ```graphql
+  mutation GeneratePDF {
+    goto(url: "https://example.com", waitUntil: firstMeaningfulPaint) {
+      status
+    }
+
+    simple: pdf {
+      base64
+    }
+
+    customArgs: pdf(
+      format: a5
+      displayHeaderFooter: true
+      headerTemplate: "<span style=\"font-size: 16pt;\">Hello World</span>"
+    ) {
+      base64
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  pdf(
+    """
+    Display header and footer. Defaults to false
+    """
+    displayHeaderFooter: Boolean
+
+    """
+    The page format to use for the PDF
+    """
+    format: PDFPageFormat
+
+    """
+    HTML template for the print footer. Should use the same format as the `headerTemplate`.
+    """
+    footerTemplate: String
+
+    """
+    Whether or not to embed the document outline into the PDF
+    """
+    generateDocumentOutline: Boolean
+
+    """
+    Whether or not to generate tagged (accessible) PDF. Defaults to embedded choice
+    """
+    generateTaggedPDF: Boolean
+
+    """
+    Paper orientation. Defaults to false
+    """
+    landscape: Boolean
+
+    """
+    Print background graphics. Defaults to false
+    """
+    printBackground: Boolean
+
+    """
+    Hides the default white background and allows the PDF to preserve transparency. Defaults to false.
+    """
+    omitBackground: Boolean
+
+    """
+    Scale of the webpage rendering. Defaults to 1
+    """
+    scale: Float
+
+    """
+    The maximum amount of time, in milliseconds, to wait for the PDF to be generated. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    When true, waits for all images on the page to load before generating the PDF.
+    Default: False
+    """
+    waitForImages: Boolean
+
+    """
+    When true, waits for document fonts to finish loading before generating the PDF.
+    Default: False
+    """
+    waitForFonts: Boolean
+
+    """
+    When true, sizes the PDF page height to the full scroll height of the
+    document so the entire page renders on a single page. Mutually exclusive
+    with "format" and "height". Default: False
+    """
+    fullPage: Boolean
+
+    """
+    Width in inches or CSS unit. Defaults to 8.5 inches
+    """
+    width: FloatOrString
+
+    """
+    HTML template for the print header. Should be valid HTML markup with following
+    classes used to inject printing values into them:
+    - `date`: formatted print date
+    - `title`: document title
+    - `url`: document location
+    - `pageNumber`: current page number
+    - `totalPages`: total pages in the document
+
+    For example, `<span class=title></span>` would generate span containing the title
+    """
+    headerTemplate: String
+
+    """
+    Height in inches or CSS unit. Defaults to 11 inches
+    """
+    height: FloatOrString
+
+    """
+    Bottom margin in inches or CSS unit. Defaults to 1cm (~0.4 inches).
+    """
+    marginBottom: FloatOrString
+
+    """
+    Left margin in inches or CSS unit. Defaults to 1cm (~0.4 inches).
+    """
+    marginLeft: FloatOrString
+
+    """
+    Right margin in inches or CSS unit. Defaults to 1cm (~0.4 inches).
+    """
+    marginRight: FloatOrString
+
+    """
+    Top margin in inches or CSS unit. Defaults to 1cm (~0.4 inches).
+    """
+    marginTop: FloatOrString
+
+    """
+    Paper ranges to print, one based, e.g., '1-5, 8, 11-13'. Pages are
+    printed in the document order, not in the order specified, and no
+    more than once. Defaults to empty string, which implies the entire document is printed.
+    The page numbers are quietly capped to actual page count of the
+    document, and ranges beyond the end of the document are ignored.
+    If this results in no pages to print, an error is reported.
+    It is an error to specify a range with start greater than end
+    """
+    pageRanges: String
+
+    """
+    Whether or not to prefer page size as defined by css. Defaults to false,
+    in which case the content will be scaled to fit the paper size
+    """
+    preferCSSPageSize: Boolean
+
+    """
+    Return as stream (PrintToPDFRequestTransferMode enum)
+    """
+    transferMode: String
+  ): PDFResponse
+
+  """
+  Sets configuration for the entirety of the session, replacing defaults like the 30 second timeout default
+
+  **Usage Example:**
+  ```graphql
+  mutation SetPreferences {
+    preferences(timeout: 10000) {
+      timeout
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  preferences(
+    """
+    Sets a default timeout for all methods, including 'goto', 'type', 'wait', etc. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float = 30000
+  ): DefaultResponse
+
+  """
+  Proxies requests, by a specified set of conditions, through either the Browserless residential proxy or through an external proxy. Only requests that match these conditions are proxied and the rest are sent from the instance's own IP address.
+
+  Use the "server" argument to specify an external proxy for Browserless to use for requests. For requests with authentication, the username and password should be included in the URL using Basic Authentication. See the examples below for more information on how to format those URLs.
+
+  **Using the browserless proxy for all requests and proxy through Brazil**
+  ```graphql
+  proxy(
+    url: ["*"]
+    country: BR
+  ) {
+    time
+  }
+  ```
+  **Using an external proxy for all requests**
+  ```graphql
+  proxy(
+    url: ["*"]
+    server: "http://username:password@my-proxy.com:12321"
+  ) {
+    time
+  }
+  ```
+  **Using the Browserless proxy for only document requests and proxying through France**
+  ```graphql
+  proxy(
+    url: ["*"]
+    type: document
+    country: FR
+  ) {
+    time
+  }
+  ```
+
+  **Field Definition:**
+  """
+  proxy(
+    """
+    The Browserless proxy network to route matching requests through: `residential` (default) or `datacenter`. Only valid for the browserless.io proxy network (not with `server`).
+    """
+    network: ProxyNetwork = residential
+
+    """
+    The country you wish to proxy through. Only allowed when using the browserless.io proxy and no `server` argument.
+    """
+    country: CountryType
+
+    """
+    The city you wish to proxy through. Any spaces should be removed and all casing lowercase. For instance, "New York City" should be "newyorkcity"
+    """
+    city: String
+
+    """
+    The state or provence you wish to proxy through. Any spaces should be removed and all casing lowercase. For instance, "Rhode Island" would be "rhodeisland" and "New Brunswick" would be "newbrunswick"
+    """
+    state: String
+
+    """
+    Whether or not you want the same IP to be used for subsequent requests matching the pattern
+    """
+    sticky: Boolean
+
+    """
+    A preset code for website-specific proxy configurations. Use this with known presets like "px_gov01" for government websites. Only applies to the `residential` network; the `datacenter` pool ignores it
+    """
+    preset: String
+
+    """
+    An external proxy to use for these requests matching the specified patterns set in the other arguments. When this is set then `country`, `city`, `state` and `sticky` options will throw errors as these are only valid for the browserless.io proxy network
+    """
+    server: String
+
+    """
+    The Method(s) of the request you'd like to proxy
+    """
+    method: [Method]
+
+    """
+    Whether to "or" conditions together, meaning any condition that matches will be proxied, or "and" them together meaning every condition must match to proxy the request.
+    """
+    operator: OperatorTypes = or
+
+    """
+    The content-type of the request you'd like to proxy requests to
+    """
+    type: [ResourceType]
+
+    """
+    A glob-style URL pattern to match requests, and if matched, are proxied through
+    """
+    url: [String]
+  ): ProxyResponse
+
+  """
+  Passes through certain properties of the browsers' own `document.querySelector` API
+
+  **Usage Example:**
+  ```graphql
+  mutation FindElement {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    query: querySelector(selector: "h1") {
+      innerHTML
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  querySelector(
+    selector: String!
+    timeout: Float
+    visible: Boolean = false
+  ): QuerySelectorResponse
+
+  """
+  Passes through certain properties of the browsers' own `document.querySelectorAll` API
+
+  **Usage Example:**
+  ```graphql
+  mutation FindElements {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    query: querySelectorAll(selector: "h1") {
+      innerHTML
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  querySelectorAll(
+    selector: String!
+    timeout: Float
+    visible: Boolean = false
+  ): [QuerySelectorResponse]
+
+  """
+  Returns a payload with reconnection information in order to reconnect back to the same browser session
+
+  **Usage Example:**
+  ```graphql
+  mutation ReconnectSession {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    reconnect(timeout: 30000) {
+      browserQLEndpoint
+      browserWSEndpoint
+      devtoolsFrontendUrl
+      webSocketDebuggerUrl
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  reconnect(
+    """
+    The amount of time, in milliseconds, to leave the browser open without a connection before it is manually terminated. Defaults to 30 seconds
+    """
+    timeout: Float = 30000
+  ): ReconnectionResponse
+
+  """
+  Stops the current session recording and processes the replay data, similar to closing the context. This mutation will stop RRWeb recording and upload the collected events.
+
+  **Usage Example:**
+  ```graphql
+  mutation StopRecording {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    stopSessionRecording {
+      success
+      error
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  stopSessionRecording: StopSessionRecordingResponse
+
+  """
+  Rejects requests by a specified URL pattern, method, or type and operator. You may supply a single pattern, or a list (array) of them. This mutation, by default, will reject any requests that match *any* pattern, which we call an "or" operator. To reject requests where conditions must all match, specify an "and" operator in the mutation. Note that this only has an effect when the query is executing, so scripts that return quickly will likely see assets loading in the editor as these rejections only happen when mutations are executing.
+  ___
+  **Rejecting images or media**
+  ```graphql
+  mutation RejectImages {
+    reject(type: [image, media]) {
+      enabled
+      time
+    }
+    goto(url: "https://cnn.com"
+    waitUntil: firstContentfulPaint) {
+      status
+      time
+    }
+  }
+  ```
+  ___
+  **Rejecting media when coming from google.com domain**
+  ```graphql
+  mutation RejectRequests {
+    reject(
+      operator: and
+      type: image
+      url: "*google.com*"
+    ) {
+      enabled
+      time
+    }
+    goto(url: "https://cnn.com"
+    waitUntil: firstContentfulPaint) {
+      status
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  reject(
+    """
+    Whether or not to enable request rejections
+    """
+    enabled: Boolean = true
+
+    """
+    The Method of the request you'd like to reject
+    """
+    method: [Method]
+
+    """
+    Whether to "or" conditions together, meaning any condition that matches will be rejected, or "and" them together meaning every condition must match to reject the request.
+    """
+    operator: OperatorTypes = or
+
+    """
+    The type of resource you'd like to reject request to
+    """
+    type: [ResourceType]
+
+    """
+    The glob-style URL pattern you'd like to reject requests to
+    """
+    url: [String]
+
+    """
+    The JavaScript regular-expression pattern(s) you'd like to reject requests by URL
+    """
+    regex: [String]
+  ): RejectResponse
+
+  """
+  Reloads the given page with an optional waitUntil parameter and timeout parameter
+
+  **Usage Example:**
+  ```graphql
+  mutation ReloadPage {
+    goto(url: "https://example.com") {
+      status
+    }
+    reload(timeout: 10000) {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  reload(
+    """
+    The maximum amount of time, in milliseconds, to wait for the page to load, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    When to consider the page fully-loaded and proceed with further execution
+    """
+    waitUntil: WaitUntilHistory = load
+  ): HTTPResponse
+
+  """
+  Returns request information made by the Browser with optional filters via arguments. You may filter the returned results by a glob-like URL-pattern, the method of the request or the type of request. Applying an operator to this will then change the behavior by either "and"ing the filters together or "or"ing them. This API will automatically wait for the request to be made if none is immediately found which you can turn off by disabling the "wait" option.
+
+  **Getting all "Document" requests**
+  ```graphql
+    mutation DocumentRequests {
+      goto(url: "https://example.com/", waitUntil: load) {
+        status
+      }
+      request(type:document) {
+        url
+        type
+        method
+        headers {
+          name
+          value
+        }
+      }
+    }
+  ```
+
+  **Load all "GET" AJAX Requests**
+  ```graphql
+    mutation AJAXGetCalls {
+      goto(url: "https://msn.com/", waitUntil: load) {
+        status
+      }
+      request(type: xhr, method: GET, operator: and) {
+        url
+        type
+        method
+        headers {
+          name
+          value
+        }
+      }
+    }
+  ```
+
+  **Field Definition:**
+  """
+  request(
+    """
+    The type content-type of the request to match against
+    """
+    type: [ResourceType]
+
+    """
+    The method of the request to return results for
+    """
+    method: [Method]
+
+    """
+    How long to wait for the request(s) to be made before timing out, overriding any defaults. Default timeout is 30 seconds, or 30000. "wait" parameter must also be "true".
+    """
+    timeout: Float
+
+    """
+    The pattern of the request URL to wait for, using glob-style pattern-matching
+    """
+    url: [String]
+
+    """
+    Whether or not to wait for the request to be made. When set to `true`, generally only one request is returned since this API will wait for the first request that matches any patterns to be returned
+    """
+    wait: Boolean = true
+
+    """
+    When applying arguments like URL or method, this operator will either "and" them together, or "or" them together. Default is "or"
+    """
+    operator: OperatorTypes = or
+  ): [RequestResponse]
+
+  """
+  Returns response information, filtered by the provided arguments, made by the browser. You may optionally filter the returned results by a glob-like URL-pattern, the Method of the response or the Type of response. Applying an operator to this will then change the behavior by either "and"ing the filters together, or "or"ing them. This API will automatically wait for the response to be made if none is immediately found which you can turn off by disabling the "wait" option.
+
+  **Getting all "Document" responses**
+  ```graphql
+    mutation DocumentResponses{
+      goto(url: "https://example.com/", waitUntil: load) {
+        status
+      }
+      response(type:document) {
+        url
+        body
+        headers {
+          name
+          value
+        }
+      }
+    }
+  ```
+
+  **Load all "GET" AJAX Responses**
+  ```graphql
+    mutation AJAXGetCalls {
+      goto(url: "https://msn.com/", waitUntil: load) {
+        status
+      }
+      response(type: xhr, method: GET, operator: and) {
+        url
+        type
+        method
+        body
+        headers {
+          name
+          value
+        }
+      }
+    }
+  ```
+
+  **Field Definition:**
+  """
+  response(
+    """
+    The status codes response to return results for
+    """
+    status: [Int]
+
+    """
+    The method of the response to return results for
+    """
+    method: [Method]
+
+    """
+    When applying arguments like URL or method, this operator will either "and" them together, or "or" them together. Default is "or"
+    """
+    operator: OperatorTypes = or
+
+    """
+    How long to wait for the response(s) to be made before timing out, overriding any defaults. Default timeout is 30 seconds, or 30000. "wait" parameter must also be "true".
+    """
+    timeout: Float
+
+    """
+    The type content-type of the response to match against
+    """
+    type: [ResourceType]
+
+    """
+    The pattern of the response URL to wait for, using glob-style pattern-matching
+    """
+    url: [String]
+
+    """
+    Whether or not to wait for the response to be received. When set to `true`, generally only one response is returned since this API will wait for the first response that matches any patterns to be returned
+    """
+    wait: Boolean = true
+  ): [ResponseResponse]
+
+  """
+  Screenshots the page or a specific selector
+
+  **Usage Example:**
+  ```graphql
+  mutation TakeScreenshot {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    screenshot {
+      base64
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  screenshot(
+    """
+    Capture the screenshot beyond the viewport.
+    Default: False if there is no clip. True otherwise
+    """
+    captureBeyondViewport: Boolean
+
+    """
+    Specifies the region of the page/element to clip
+    """
+    clip: ScreenshotClip
+    """
+    Capture the screenshot from the surface, rather than the view.
+    Default: True
+    """
+    fromSurface: Boolean
+
+    """
+    When True, takes a screenshot of the full page.
+    Default: False
+    """
+    fullPage: Boolean
+
+    """
+    Hides default white background and allows capturing screenshots with transparency.
+    Default: False
+    """
+    omitBackground: Boolean
+
+    """
+    Optimize image encoding for speed, not for resulting size.
+    Default: False
+    """
+    optimizeForSpeed: Boolean
+
+    """
+    Quality of the image, between 0-100. Not applicable to png images.
+    """
+    quality: Float
+
+    """
+    The CSS selector of the element on the page you want to screenshot
+    """
+    selector: String
+
+    """
+    The final format of the screenshot
+    """
+    type: ScreenshotType
+
+    """
+    The maximum amount of time, in milliseconds, to wait for the screenshot to be taken. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    When true, waits for all images on the page to load before taking the screenshot.
+    Default: False
+    """
+    waitForImages: Boolean
+  ): ScreenshotResponse
+
+  """
+  Waits for a selector, then scrolls to it on the page or an x,y coordinate in pixels
+
+  **Usage Example:**
+  ```graphql
+  mutation ScrollToElement {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    scroll(selector: "h1") {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  scroll(
+    """
+    The DOM selector of the element on the page you want to scroll to
+    """
+    selector: String
+
+    """
+    Scrolls through the entire document in viewport-sized steps to trigger
+    lazy-loaded content, then returns to the top. Cannot be combined with
+    selector, x, or y.
+    """
+    throughPage: Boolean = false
+
+    """
+    How long to wait for the element to appear before timing out, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to scroll to the element only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Whether or not to wait for the element, then scroll to it
+    """
+    wait: Boolean = true
+
+    """
+    The X coordinate, in pixels, to scroll to
+    """
+    x: Float
+
+    """
+    The Y coordinate, in pixels, to scroll to
+    """
+    y: Float
+  ): ScrollResponse
+
+  """
+  Selects a value from a dropdown or multiple select element
+
+  **Usage Example:**
+  ```graphql
+  mutation SelectOption {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    single: select(
+      selector: "select"
+      value: "option1"
+    ) {
+      time
+    }
+
+    multi: select(
+      selector: "select"
+      value: ["option1", "option2"]
+    ) {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  select(
+    """
+    How long to wait for the element to appear before timing out on the handler, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to scroll to the select element prior to selecting, defaults to true
+    """
+    scroll: Boolean = true
+
+    """
+    The CSS selector of the element on the page you want to select a value from
+    """
+    selector: String!
+
+    """
+    The value or values to select from the dropdown or multiple select element
+    """
+    value: StringOrArray!
+
+    """
+    Whether or not to select the element only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Whether or not to wait for the select to present in the DOM
+    """
+    wait: Boolean = true
+  ): SelectResponse
+
+  """
+  🚨 **EXPERIMENTAL** 🚨
+  Solves a captcha or other challenge. Can auto-detect the CAPTCHA type or solve a specific type.
+  Uses the same detection logic as BaaS to automatically identify the CAPTCHA type
+  and routes to the appropriate solver. Optionally accepts a specific type to solve.
+
+  Example (Auto-detection):
+  ```graphql
+  mutation SolveAuto {
+    goto(url: "https://protected.domain") {
+      status
+    }
+
+    solve {
+      found
+      solved
+      time
+      token
+    }
+  }
+  ```
+
+  Example (Specific type):
+  ```graphql
+  mutation SolveSpecific {
+    goto(url: "https://protected.domain") {
+      status
+    }
+
+    solve(type: recaptcha) {
+      found
+      solved
+      time
+      token
+    }
+  }
+  ```
+  """
+  solve(
+    """
+    An enum of the type of captcha to look for and solve. If not provided, auto-detection will be used.
+    """
+    type: CaptchaTypes
+
+    """
+    A time, in milliseconds, to wait for a captcha to appear. Only valid when wait = true.
+    If a captcha is found then this timer doesn't have an effect on timing-out the solve
+    Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to wait for the Captcha to be present on the page
+    """
+    wait: Boolean = true
+  ): CaptchaResponse
+
+  """
+  Solves an image captcha using caller-provided selectors. Unlike solve, which auto-detects known captcha types, this mutation works on any site by accepting custom captchaSelector and inputSelector arguments. It detects the captcha image, solves it, and fills the result into the specified input field.
+
+  **Usage Example:**
+  ```graphql
+  mutation SolveImageCaptcha {
+    goto(url: "https://example.com") {
+      status
+    }
+    solveImageCaptcha(
+      captchaSelector: "img.captcha-image"
+      inputSelector: "input#captcha-input"
+      timeout: 60000
+    ) {
+      found
+      solved
+      time
+      token
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  solveImageCaptcha(
+    """
+    The CSS selector for the captcha image element on the page
+    """
+    captchaSelector: String!
+
+    """
+    The CSS selector for the input field where the solved captcha value should be filled
+    """
+    inputSelector: String!
+
+    """
+    A time, in milliseconds, to wait for the captcha to appear and be solved. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+  ): CaptchaResponse
+
+  """
+  Returns the text content on the given page or by selector when specified
+
+  **Usage Example:**
+  ```graphql
+  mutation GetText {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    selector: text(selector: "h1") {
+        text
+    }
+
+    fullPage: text {
+      text
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  text(
+    """
+    The maximum amount of time, in milliseconds, to wait for the selector to appear, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    The DOM selector of the given element you want to return the text of
+    """
+    selector: String = "html"
+
+    """
+    Whether or not to return the text content of the element only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Specifies conditions for "cleaning" the returned text, useful for minimizing the amount of markup returned for cases like LLMs and more. See nested options for parameters.
+    """
+    clean: CleanInput
+  ): TextResponse
+
+  """
+  Returns the title of the page that the browser is currently at
+
+  **Usage Example:**
+  ```graphql
+  mutation GetTitle {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    title {
+      title
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  title: TitleResponse
+
+  """
+  Types text into an element by scrolling to it, clicking it, then emitting key events for every character. Include a `\n` (or `\r`) in `text` to send an Enter/Return key press — useful for submitting search boxes or forms without a separate click. BrowserQL has no standalone key-press mutation, so non-Enter keys cannot be simulated; use `click` for non-keyboard submit interactions (for example, a submit button).
+
+  **Usage Example:**
+  ```graphql
+  mutation TypeText {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    type(
+      text: "Hello, World!"
+      selector: "input[type='text']"
+    ) {
+      time
+    }
+
+    # Type a query and press Enter to submit
+    searchAndSubmit: type(
+      text: "browserless\n"
+      selector: "input[name='q']"
+    ) {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  type(
+    """
+    The text content you want to type into the element. A `\n` or `\r` character is sent as an Enter key press.
+    """
+    text: String!
+
+    """
+    The CSS selector of the element on the page you want to type text into
+    """
+    selector: String!
+
+    """
+    The amount of delay between keystrokes in milliseconds. Values are used as a range and chosen at random
+    """
+    delay: [Int] = [50, 200]
+
+    """
+    Whether or not to check if element can be interacted with by hovering over it and seeing if the element
+    is available at that x and y position
+    """
+    interactable: Boolean = true
+
+    """
+    Whether or not to scroll to the element prior to typing, defaults to true
+    """
+    scroll: Boolean = true
+
+    """
+    How long to wait for the element to appear before timing out, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to type into the element only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Whether or not to wait for the element to present in the DOM
+    """
+    wait: Boolean = true
+  ): TypeResponse
+
+  """
+  Fills a credential resolved just-in-time from a configured 1Password
+  integration into a target input. The resolved value never appears in your
+  query or in the response. The session must be started with an integration
+  (the `integrationId` connection parameter or session field), and the page's
+  origin must be in the integration's allowed-domain list. Once any secret has
+  been filled, capture and page-content readback are disabled for the rest of the
+  session — screenshots, PDFs, screencasts, Live URLs, session recording, and the
+  content-return mutations (evaluate, html, text, querySelector, querySelectorAll,
+  cookies).
+
+  **Usage Example:**
+  ```graphql
+  mutation Login {
+    goto(url: "https://example.com/login") {
+      status
+    }
+
+    username: loadSecret(
+      ref: "op://Vault/Item/username"
+      selector: "#email"
+    ) {
+      ok
+      error
+    }
+
+    password: loadSecret(
+      ref: "op://Vault/Item/password"
+      selector: "#password"
+    ) {
+      ok
+      error
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  loadSecret(
+    """
+    The 1Password op:// reference (e.g. op://Vault/Item/password), or an alias
+    declared in the session's credentials map.
+    """
+    ref: String!
+
+    """
+    The CSS selector of the input to fill. If omitted, the currently focused
+    element is used.
+    """
+    selector: String
+  ): LoadSecretResponse
+
+  """
+  Returns the URL of the page that the browser is currently at
+
+  **Usage Example:**
+  ```graphql
+  mutation GetURL {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    url {
+      url
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  url: URLResponse
+
+  """
+  ⛔ **DEPRECATED** ⛔
+  This mutation is deprecated and will be removed in a future version.
+  Please use the `solve` mutation instead.
+
+  ---
+
+  Clicks a verification button to assert human-like
+
+  **Usage Example:**
+  ```graphql
+  mutation VerifyCaptcha {
+    goto(url: "https://protected.domain") {
+      status
+    }
+
+    verify(type: cloudflare) {
+      found
+      solved
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  verify(
+    """
+    An enum of the type of captcha to look for and solve
+    """
+    type: VerifyTypes!
+
+    """
+    A time, in milliseconds, to wait for a verification to appear. Only valid when wait = true. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to wait for the verification to be present on the page
+    """
+    wait: Boolean = true
+  ): CaptchaResponse
+    @deprecated(
+      reason: "Use the `solve` mutation instead. This mutation will be removed in a future version."
+    )
+
+  """
+  Waits for a navigation even to fire, useful for clicking an element and waiting for a page load of some
+
+  **Usage Example:**
+  ```graphql
+  mutation WaitForNavigation {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    waitForNavigation(waitUntil: load) {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  waitForNavigation(
+    """
+    The maximum amount of time, in milliseconds, to wait for the page to load, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    When to consider the page fully-loaded and proceed with further execution
+    """
+    waitUntil: WaitUntilGoto = load
+  ): HTTPResponse
+
+  """
+  Waits for the browser to make a particular request
+
+  **Usage Example:**
+  ```graphql
+  mutation WaitForRequest {
+    goto(url: "https://browserless.io") {
+      status
+    }
+
+    waitForRequest(method: GET) {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  waitForRequest(
+    """
+    The method of the request to wait for
+    """
+    method: Method
+
+    """
+    When applying arguments like URL or method, this operator will either "and" them together, or "or" them together. Default is "or"
+    """
+    operator: OperatorTypes = or
+
+    """
+    How long to wait for the request to be made before timing out, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    The pattern of the request URL to wait for, using glob-style pattern-matching
+    """
+    url: String
+  ): WaitForRequest
+
+  """
+  Waits for a particular network response to be made back to the browser
+
+  **Usage Example:**
+  ```graphql
+  mutation WaitForResponse {
+    goto(url: "https://browserless.io") {
+      status
+    }
+
+    waitForResponse(statuses: [200]) {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  waitForResponse(
+    """
+    The HTTP Response code(s) of the URL to wait for. Can be a single HTTP code or a list of desired codes
+    """
+    codes: [Int]
+      @deprecated(
+        reason: "Use `statuses` field instead as it is more consistent in BrowserQL."
+      )
+
+    """
+    When applying arguments like URL or statuses, this operator will either "and" them together, or "or" them together. Default is "or"
+    """
+    operator: OperatorTypes = or
+
+    """
+    The HTTP Response code(s) of the URL to wait for. Can be a single HTTP code or a list of desired codes
+    """
+    statuses: [Int]
+
+    """
+    The pattern of the response URL to wait for, using glob-style pattern-matching
+    """
+    url: String
+  ): WaitForResponse
+
+  """
+  Wait for a period of time, defined in milliseconds
+
+  **Usage Example:**
+  ```graphql
+  mutation WaitForTimeout {
+    waitForTimeout(time: 1000) {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  waitForTimeout(
+    """
+    The amount of time to wait for, in milliseconds
+    """
+    time: Float!
+  ): WaitForTimeout
+
+  """
+  Wait for the page to have no more than the configured number of in-flight network requests for a period of time.
+
+  **Field Definition:**
+  """
+  waitForNetworkIdle(
+    """
+    The number of milliseconds the network must remain idle.
+    """
+    idleTime: Float = 500
+
+    """
+    The maximum number of in-flight requests allowed while considering the network idle.
+    """
+    concurrency: Int = 0
+
+    """
+    The maximum amount of time, in milliseconds, to wait for network idle.
+    """
+    timeout: Float
+  ): WaitForTimeout
+
+  """
+  Waits for a given selector to be present in the DOM, with optional visibility
+
+  **Usage Example:**
+  ```graphql
+  mutation WaitForSelector {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    waitForSelector(selector: "h1") {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  waitForSelector(
+    """
+    The selector to wait for until present in the DOM
+    """
+    selector: String!
+
+    """
+    When waiting for a selector applies a timeout to wait for in milliseconds, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to consider the element as present only if it's visible
+    """
+    visible: Boolean = false
+
+    """
+    Wait for the selector to become hidden, i.e. removed from the DOM or with
+    no visible bounding box. Mutually exclusive with "visible".
+    """
+    hidden: Boolean = false
+  ): WaitForSelector
+
+  """
+  Waits for a JavaScript predicate, evaluated in the page, to return a truthy value. The predicate may be a statement or a function expression and can be async.
+
+  **Usage Example:**
+  ```graphql
+  mutation WaitForFunction {
+    goto(url: "https://example.com") {
+      status
+    }
+
+    waitForFunction(fn: "window.dataLayer && window.dataLayer.length > 0") {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  waitForFunction(
+    """
+    The JavaScript predicate to evaluate in the page. May be a statement (eg: "window.ready === true") or a function expression (eg: "() => document.readyState === 'complete'")
+    """
+    fn: String!
+
+    """
+    The interval, in milliseconds, at which the predicate is re-evaluated. Defaults to 100ms
+    """
+    polling: Float
+
+    """
+    A browser-driven polling mode. Use this instead of polling for raf or mutation behavior.
+    """
+    pollingType: WaitForFunctionPolling
+
+    """
+    The maximum amount of time, in milliseconds, to wait for the predicate to become truthy, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+  ): WaitForFunction
+
+  """
+  Waits for a named event to fire on the page's document or window.
+
+  **Usage Example:**
+  ```graphql
+  mutation WaitForEvent {
+    goto(url: "https://example.com", waitUntil: domContentLoaded) {
+      status
+    }
+
+    # Attach the listener *before* the event fires. "load" already fired
+    # during goto above, so wait for an event the page dispatches afterwards
+    # (eg: a custom event emitted once async setup completes).
+    waitForEvent(event: "app:ready") {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  waitForEvent(
+    """
+    The name of the event to wait for, eg: "load" or a custom event name
+    """
+    event: String!
+
+    """
+    The maximum amount of time, in milliseconds, to wait for the event to fire, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+  ): WaitForEvent
+
+  """
+  Starts tracking a named document/window event in the current document and
+  before scripts execute in future documents. A later waitForEvent call returns
+  immediately when the tracked event has already fired.
+  """
+  watchEvent(
+    """
+    The name of the event to track, eg: "load" or a custom event name
+    """
+    event: String!
+  ): WaitForEvent
+
+  """
+  Sets the viewport dimensions for the browser session
+
+  **Usage Example:**
+  ```graphql
+  mutation SetViewport {
+    viewport(width: 1920, height: 1080) {
+      width
+      height
+      time
+    }
+  }
+  ```
+
+  **Mobile device simulation:**
+  ```graphql
+  mutation MobileViewport {
+    viewport(width: 375, height: 667, deviceScaleFactor: 1, mobile: true) {
+      width
+      height
+      deviceScaleFactor
+      mobile
+      time
+    }
+  }
+  ```
+
+  **Desktop simulation:**
+  ```graphql
+  mutation DesktopViewport {
+    viewport(width: 1920, height: 1080, mobile: false) {
+      width
+      height
+      mobile
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  viewport(
+    """
+    The width of the viewport in pixels
+    """
+    width: Float!
+
+    """
+    The height of the viewport in pixels
+    """
+    height: Float!
+
+    """
+    The device scale factor, defaults to 1
+    """
+    deviceScaleFactor: Float = 1
+
+    """
+    Whether to simulate a mobile device, defaults to false
+    """
+    mobile: Boolean = false
+
+    """
+    Whether the viewport supports touch events, defaults to false
+    """
+    hasTouch: Boolean = false
+
+    """
+    Whether the viewport is in landscape orientation, defaults to false
+    """
+    landscape: Boolean = false
+  ): ViewportResponse
+
+  """
+  Switches context to a popup window matching specified criteria
+  """
+  switchToWindow(
+    """
+    URL pattern to match against window URLs (supports wildcards)
+    """
+    url: String
+
+    """
+    Window title pattern to match
+    """
+    title: String
+
+    """
+    Whether to target most recently opened window
+    """
+    newest: Boolean = false
+
+    """
+    Maximum time to wait for matching window (in milliseconds)
+    """
+    timeout: Float = 5000
+
+    """
+    When to consider the page fully-loaded and proceed with further execution
+    """
+    waitUntil: WaitUntilGoto
+  ): SwitchWindowResponse
+
+  """
+  Emulates the given CSS media type for the page, mirroring the behavior of
+  printing ("print") or on-screen rendering ("screen"). Useful before a `pdf`
+  or `screenshot` to control how the page renders.
+
+  **Usage Example:**
+  ```graphql
+  mutation EmulatePrint {
+    goto(url: "https://example.com") {
+      status
+    }
+    emulateMediaType(type: print) {
+      time
+    }
+    pdf {
+      base64
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  emulateMediaType(
+    """
+    The CSS media type to emulate
+    """
+    type: MediaType!
+  ): EmulateMediaTypeResponse
+
+  """
+  Injects a `<script>` tag into the page, either from a URL or from raw
+  content. When a URL is given the mutation resolves once the script has
+  loaded.
+
+  **Usage Example:**
+  ```graphql
+  mutation InjectScript {
+    goto(url: "https://example.com") {
+      status
+    }
+    addScriptTag(url: "https://code.jquery.com/jquery-3.7.1.min.js") {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  addScriptTag(
+    """
+    The URL of the script to add. One of "url" or "content" is required.
+    """
+    url: String
+
+    """
+    The raw JavaScript content of the script to add. One of "url" or "content" is required.
+    """
+    content: String
+
+    """
+    The id attribute to set on the injected script element
+    """
+    id: String
+
+    """
+    The type attribute to set on the injected script element, eg: "module"
+    """
+    type: String
+  ): AddScriptTagResponse
+
+  """
+  Injects a stylesheet into the page, either as a `<link>` from a URL or as a
+  `<style>` element from raw content. When a URL is given the mutation resolves
+  once the stylesheet has loaded.
+
+  **Usage Example:**
+  ```graphql
+  mutation InjectStyle {
+    goto(url: "https://example.com") {
+      status
+    }
+    addStyleTag(content: "body { background: #000; }") {
+      time
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  addStyleTag(
+    """
+    The URL of the stylesheet to add. One of "url" or "content" is required.
+    """
+    url: String
+
+    """
+    The raw CSS content of the stylesheet to add. One of "url" or "content" is required.
+    """
+    content: String
+  ): AddStyleTagResponse
+
+  """
+  Fulfills matching requests with a canned response instead of letting them hit
+  the network, mirroring the request-interceptor mocking used by the REST APIs.
+  Matching follows the same glob-style URL/method/type conditions as `reject`.
+
+  **Usage Example:**
+  ```graphql
+  mutation MockApi {
+    fulfill(
+      url: ["*/api/user"]
+      status: 200
+      contentType: "application/json"
+      body: "{\\"name\\":\\"test\\"}"
+    ) {
+      time
+    }
+    goto(url: "https://example.com") {
+      status
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  fulfill(
+    """
+    The glob-style URL pattern(s) to fulfill requests for
+    """
+    url: [String]
+
+    """
+    JavaScript regular-expression pattern(s) to match request URLs
+    """
+    regex: [String]
+
+    """
+    The HTTP Method(s) of the requests to fulfill
+    """
+    method: [Method]
+
+    """
+    The resource type(s) of the requests to fulfill
+    """
+    type: [ResourceType]
+
+    """
+    Whether to "or" the conditions together (any match fulfills) or "and" them (all must match)
+    """
+    operator: OperatorTypes = or
+
+    """
+    The HTTP status code to respond with. Defaults to 200
+    """
+    status: Int = 200
+
+    """
+    The Content-Type header to respond with
+    """
+    contentType: String
+
+    """
+    The response body to respond with
+    """
+    body: String
+
+    """
+    A base64-encoded response body. Use this instead of body for binary data.
+    """
+    base64Body: String
+
+    """
+    Additional response headers to respond with
+    """
+    headers: [HeaderInput]
+  ): FulfillResponse
+
+  """
+  Returns the page's content converted to Markdown. The HTML is fetched from
+  the page (optionally scoped to a selector) and converted server-side, with
+  script/style/noscript/iframe nodes stripped.
+
+  **Usage Example:**
+  ```graphql
+  mutation Markdownify {
+    goto(url: "https://example.com") {
+      status
+    }
+    markdown {
+      markdown
+    }
+  }
+  ```
+
+  **Field Definition:**
+  """
+  markdown(
+    """
+    The DOM selector to scope the Markdown conversion to. Defaults to the whole document.
+    """
+    selector: String
+
+    """
+    The maximum amount of time, in milliseconds, to wait for the selector to appear, overriding any defaults. Default timeout is 30 seconds, or 30000.
+    """
+    timeout: Float
+
+    """
+    Whether or not to convert the element only if it's visible
+    """
+    visible: Boolean = false
+  ): MarkdownResponse
+
+  """
+  Closes a Live URL created by this browser session.
+  """
+  closeLiveURL(
+    """
+    The ID of the Live URL to close
+    """
+    liveURLId: String!
+  ): CloseLiveURLResponse!
+}
+
+type Query {
+  """
+  The Version of this server
+  """
+  version: String
+
+  """
+  The Version of the browser
+  """
+  browser: String
+}
+
+"""
+The kind of console message, mirroring the CDP Runtime.consoleAPICalled type
+(and puppeteer's ConsoleMessageType). Uncaught exceptions are reported as `error`.
+"""
+enum ConsoleMessageType {
+  log
+  debug
+  info
+  error
+  warning
+  dir
+  dirxml
+  table
+  trace
+  clear
+  startGroup
+  startGroupCollapsed
+  endGroup
+  assert
+  profile
+  profileEnd
+  count
+  timeEnd
+  verbose
+}
+
+"""
+The source location a console message originated from.
+"""
+type ConsoleMessageLocation {
+  url: String
+  lineNumber: Int
+  columnNumber: Int
+}
+
+"""
+A console message emitted by the page. Mirrors puppeteer's ConsoleMessage,
+sourced from CDP Runtime.consoleAPICalled and Runtime.exceptionThrown.
+"""
+type ConsoleMessage {
+  """
+  The kind of console message.
+  """
+  type: ConsoleMessageType
+
+  """
+  The joined, human-readable message text (equivalent to puppeteer's msg.text()).
+  """
+  text: String
+
+  """
+  Each console argument, JSON-encoded and in order (equivalent to msg.args()).
+  """
+  args: [String]
+
+  """
+  The source location the message originated from.
+  """
+  location: ConsoleMessageLocation
+
+  """
+  Wall-clock milliseconds since the Unix epoch when the message was emitted.
+  """
+  timestamp: Float
+}
+
+"""
+Long-lived, event-based streams delivered over the graphql-transport-ws
+WebSocket subprotocol. Unlike the one-shot request/response mutations, a
+subscription pushes a value each time the underlying page event fires, until
+the client completes it or the session closes.
+"""
+type Subscription {
+  """
+  Streams console output as the page emits it. Mirrors page.on('console').
+  """
+  console: ConsoleMessage
+
+  """
+  Streams each network request as it is issued. Mirrors page.on('request').
+  The optional filters mirror the request() mutation.
+  """
+  request(
+    """
+    Glob-like URL pattern(s) to match against.
+    """
+    url: [String]
+
+    """
+    HTTP method(s) to match against.
+    """
+    method: [Method]
+
+    """
+    Resource type(s) to match against.
+    """
+    type: [ResourceType]
+
+    """
+    Whether to "and" or "or" the supplied filters together.
+    """
+    operator: OperatorTypes = or
+  ): RequestResponse
+
+  """
+  Streams each network response as it is received. Mirrors page.on('response').
+  The response body is NOT fetched by default (streaming many bodies is
+  expensive); request the `body` field in your selection set to trigger a
+  per-event fetch.
+  """
+  response(
+    """
+    Glob-like URL pattern(s) to match against.
+    """
+    url: [String]
+
+    """
+    HTTP status code(s) to match against.
+    """
+    status: [Int]
+
+    """
+    HTTP method(s) to match against.
+    """
+    method: [Method]
+
+    """
+    Resource type(s) to match against.
+    """
+    type: [ResourceType]
+
+    """
+    Whether to "and" or "or" the supplied filters together.
+    """
+    operator: OperatorTypes = or
+  ): ResponseResponse
+
+  """
+  Streams one completion per live URL minted by this BQL session. The stream
+  remains open for later mints until unsubscribed or the session closes.
+  """
+  liveComplete: LiveURLCompleteEvent!
+}
+
+"""
+The @export directive allows you to export a field value as a variable
+that can be used in subsequent mutations within the same request.
+
+Example:
+```
+mutation {
+  page: goto(url: "https://example.com") {
+    url @export(as: "currentUrl")
+  }
+  text: type(selector: "input", text: "${currentUrl}") {
+    selector
+  }
+}
+```
+"""
+directive @export(
+  """
+  The variable name to export this field value as. Can be referenced
+  in subsequent mutations using ${variableName} template syntax.
+  """
+  as: String!
+) on FIELD
+
+"""
+The reason a live URL handoff completed.
+"""
+enum LiveURLCompleteReason {
+  timeout
+  closed
+  userDone
+  userFailed
+  viewerDisconnected
+}
+
+type LiveURLCompleteEvent {
+  liveURLId: String!
+  reason: LiveURLCompleteReason!
+}
+
+"""
+The response returned after closing a Live URL
+"""
+type CloseLiveURLResponse {
+  """
+  The ID of the closed Live URL
+  """
+  liveURLId: String!
+}

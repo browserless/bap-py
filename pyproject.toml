@@ -1,0 +1,95 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "browserless-bap"
+dynamic = ["version"]
+description = "Python async and sync client for Browserless's Browser Automation Protocol"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "Browserless", email = "eng@browserless.io"}]
+keywords = ["browserless", "browserql", "browser-automation", "playwright"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Typing :: Typed",
+]
+dependencies = ["websockets>=14.0"]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "graphql-core>=3.2",
+  "griffe>=1.0",
+  "mypy>=1.14",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.25",
+  "pytest-timeout>=2.3",
+  "ruff>=0.9",
+  "twine>=6.0",
+]
+
+[project.urls]
+Documentation = "https://docs.browserless.io"
+Homepage = "https://github.com/browserless/bap-py"
+Issues = "https://github.com/browserless/bap-py/issues"
+
+[tool.hatch.version]
+path = "src/browserless_bap/_version.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/AGENTS.md",
+  "/CONTRIBUTING.md",
+  "/LICENSE",
+  "/README.md",
+  "/llms.txt",
+  "/pyproject.toml",
+  "/schema.lock",
+  "/scripts",
+  "/src",
+  "/tests",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/browserless_bap"]
+exclude = ["src/browserless_bap/mutations.graphql"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/browserless_bap/py.typed" = "browserless_bap/py.typed"
+
+[tool.pytest.ini_options]
+addopts = "--timeout=60 --timeout-method=thread"
+asyncio_mode = "auto"
+filterwarnings = ["error::RuntimeWarning"]
+markers = ["e2e: tests that require a live Browserless service"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint]
+select = ["ASYNC", "B", "E", "F", "I", "RUF", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/browserless_bap/_page_generated.py" = ["E501"]
+"src/browserless_bap/graphql/mutations.py" = ["E501"]
+"src/browserless_bap/graphql/subscriptions.py" = ["E501"]
+"src/browserless_bap/sync_api/_page_generated.py" = ["E501"]
+"src/browserless_bap/types/*.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src/browserless_bap", "scripts", "tests"]

@@ -1,0 +1,1 @@
+"""Synchronous API tests."""

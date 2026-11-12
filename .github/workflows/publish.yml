@@ -1,0 +1,98 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install development and build dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Require tag to match package version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import os
+          import runpy
+
+          version = runpy.run_path("src/browserless_bap/_version.py")["__version__"]
+          expected = f"v{version}"
+          actual = os.environ["RELEASE_TAG"]
+          if actual != expected:
+              raise SystemExit(f"release tag {actual!r} must equal {expected!r}")
+          PY
+      - name: Check formatting
+        run: ruff format --check .
+      - name: Lint
+        run: ruff check .
+      - name: Type-check
+        run: mypy
+      - name: Run offline tests
+        run: pytest -m "not e2e"
+      - name: Verify schema lock
+        run: python scripts/sync_schema.py --check
+      - name: Verify generated files
+        run: |
+          python scripts/codegen.py
+          git diff --exit-code -- README.md llms.txt src/browserless_bap
+          test -z "$(git status --porcelain --untracked-files=all)"
+      - name: Check public API compatibility
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          PREVIOUS_TAG="$(
+            git tag --sort=-version:refname |
+              grep -Fxv "$RELEASE_TAG" |
+              head -1 ||
+              true
+          )"
+          if test -z "$PREVIOUS_TAG"; then
+            echo "No prior release tag; bootstrapping API compatibility baseline."
+          else
+            griffe check src/browserless_bap --against "$PREVIOUS_TAG"
+          fi
+      - run: python -m build
+      - name: Validate distributions
+        run: twine check dist/*
+      - name: Smoke-test wheel in a fresh environment
+        run: |
+          python -m venv /tmp/bap-wheel-smoke
+          /tmp/bap-wheel-smoke/bin/python -m pip install dist/*.whl
+          /tmp/bap-wheel-smoke/bin/python -c \
+            "import browserless_bap, browserless_bap.sync_api; assert not hasattr(browserless_bap, 'schema_source')"
+          ! python -m zipfile -l dist/*.whl | grep -q 'mutations.graphql'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/browserless-bap/
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: distributions
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

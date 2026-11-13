@@ -17,10 +17,17 @@ INTERNAL_HOST = re.compile(
     r"linear\.app\b|ampcode\.com/threads|slack\.com|devin\.ai|usepylon\.com",
     re.IGNORECASE,
 )
+# The code review bot adds a badge to every PR description. Its public review and
+# asset links are allowed; any other link to that host (such as a session) is not.
+PUBLIC_BOT_LINK = re.compile(
+    r"https://(?:app\.devin\.ai/review|static\.devin\.ai/assets)/[^\s\"'<>)]*",
+    re.IGNORECASE,
+)
 TITLE_ONLY_AUTHORS: frozenset[str] = frozenset({"dependabot[bot]"})
 
 
 def find_violations(text: str) -> list[str]:
+    text = PUBLIC_BOT_LINK.sub("", text)
     tickets = [
         match.group(0)
         for match in TICKET_ID.finditer(text)

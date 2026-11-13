@@ -71,6 +71,32 @@ def test_internal_link_in_body_fails(capsys: pytest.CaptureFixture[str]) -> None
     )
 
 
+def test_review_bot_badge_in_body_passes(capsys: pytest.CaptureFixture[str]) -> None:
+    badge = (
+        '<a href="https://app.devin.ai/review/browserless/bap-py/pull/3" '
+        'target="_blank"><picture><source media="(prefers-color-scheme: dark)" '
+        'srcset="https://static.devin.ai/assets/gh-devin-review-dark.svg?v=4">'
+        '<img src="https://static.devin.ai/assets/gh-devin-review-light.svg?v=4" '
+        'alt="Devin Review"></picture></a>'
+    )
+    result = check_public_text.main({"PR_TITLE": "docs: fix typo", "PR_BODY": badge})
+
+    assert result == 0
+    assert capsys.readouterr().out == ""
+
+
+def test_other_review_bot_links_still_fail(capsys: pytest.CaptureFixture[str]) -> None:
+    result = check_public_text.main(
+        {
+            "PR_TITLE": "docs: fix typo",
+            "PR_BODY": "see https://app.devin.ai/sessions/abc",
+        }
+    )
+
+    assert result == 1
+    assert "PR body contains internal references: devin.ai" in (capsys.readouterr().out)
+
+
 def test_dependabot_body_is_not_checked(capsys: pytest.CaptureFixture[str]) -> None:
     result = check_public_text.main(
         {

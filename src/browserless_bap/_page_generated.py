@@ -301,7 +301,7 @@ class PageGenerated:
     async def content(
         self,
     ) -> str:
-        'Returns the HTML content of the page or selector when specified. This API can also "clean" HTML markup returned by specifying a "clean" argument with numerous options. Features of the "clean" argument include removal of non-text nodes, removal of DOM attributes, as well as removal of excessive whitespace and newlines. Using "clean" can save nearly 1,000 times the payload size. Useful for LLM\'s and other scenarios'
+        "Return the full HTML content of the page as a string."
         args = None
         result = await self._execute(
             "html",

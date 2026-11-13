@@ -244,16 +244,39 @@ async def test_wait_for_function_rewrite_preserves_raw_timeout() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wait_for_function_awaits_plain_promise_factory() -> None:
+@pytest.mark.parametrize(
+    "expression",
+    [
+        "() => window.ready",
+        "() => fetch('/')",
+        "function () { return 1 }",
+        "asyncReady",
+    ],
+)
+async def test_wait_for_function_leaves_non_async_predicates_unwrapped(
+    expression: str,
+) -> None:
     page = RecordingPage()
     await page.wait_for_function(
-        "() => fetch('/')",
+        expression,
         complete_on_promise_resolution=True,
     )
 
     args = page.calls[0][1]
     assert args is not None
-    assert args["fn"] == ("async () => { await (() => fetch('/'))(); return true; }")
+    assert args["fn"] == expression
+    await page.close()
+
+
+@pytest.mark.asyncio
+async def test_wait_for_function_wraps_async_predicate_with_leading_whitespace() -> (
+    None
+):
+    page = RecordingPage()
+    await page.wait_for_function("  async () => 1", complete_on_promise_resolution=True)
+    args = page.calls[0][1]
+    assert args is not None
+    assert args["fn"].startswith("async () => { await (")
     await page.close()
 
 

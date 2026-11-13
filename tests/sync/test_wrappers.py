@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any, cast
 
 import pytest
@@ -213,7 +213,8 @@ def test_sync_once_releases_wrapper_and_can_be_cancelled() -> None:
         assert ("console", callback, True) in page._event_wrappers
         bridge.run(impl.fire("console", "first"))
         bridge.run(impl.fire("console", "second"))
-        bridge.dispatcher.submit(drained.set)
+        assert page._dispatcher is not None
+        page._dispatcher.submit(drained.set)
         assert drained.wait(timeout=2)
         assert delivered == ["first"]
         assert ("console", callback, True) not in page._event_wrappers
@@ -222,7 +223,7 @@ def test_sync_once_releases_wrapper_and_can_be_cancelled() -> None:
         page.off("console", cancelled)
         bridge.run(impl.fire("console", "ignored"))
         drained.clear()
-        bridge.dispatcher.submit(drained.set)
+        page._dispatcher.submit(drained.set)
         assert drained.wait(timeout=2)
         assert delivered == ["first"]
         assert ("console", cancelled, True) not in page._event_wrappers
@@ -251,7 +252,8 @@ def test_on_and_once_keep_distinct_wrappers(
         assert ("console", callback, True) in page._event_wrappers
         bridge.run(impl.fire("console", "first"))
         bridge.run(impl.fire("console", "second"))
-        bridge.dispatcher.submit(drained.set)
+        assert page._dispatcher is not None
+        page._dispatcher.submit(drained.set)
 
         assert drained.wait(timeout=2)
         assert delivered.count("first") == 2
@@ -371,5 +373,153 @@ def test_browser_context_manager_closes_pages() -> None:
                 assert not page.closed
             assert page.closed
         assert browser.get_pages() == []
+    finally:
+        bridge.close()
+
+
+def test_slow_callback_on_one_page_does_not_delay_another() -> None:
+    bridge = LoopThread()
+    impl_a, impl_b = AsyncPage(), AsyncPage()
+    page_a, page_b = Page(impl_a, bridge), Page(impl_b, bridge)
+    started, release, delivered = (threading.Event() for _ in range(3))
+    threads: list[threading.Thread] = []
+
+    def slow(_payload: object) -> None:
+        threads.append(threading.current_thread())
+        started.set()
+        release.wait(timeout=5)
+
+    def fast(_payload: object) -> None:
+        threads.append(threading.current_thread())
+        delivered.set()
+
+    try:
+        page_a.on("console", slow)
+        page_b.on("console", fast)
+        bridge.run(impl_a.fire("console", "a"))
+        assert started.wait(timeout=2)
+        bridge.run(impl_b.fire("console", "b"))
+        assert delivered.wait(timeout=1)
+        assert threads[0] is not threads[1]
+    finally:
+        release.set()
+        bridge.close()
+
+
+def test_once_survives_full_queue(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(page_module, "_CALLBACK_QUEUE_SIZE", 1, raising=False)
+    bridge = LoopThread()
+    impl = AsyncPage()
+    page = Page(impl, bridge)
+    started, release, drained = (threading.Event() for _ in range(3))
+    delivered: list[str] = []
+
+    def callback(payload: object) -> None:
+        delivered.append(str(payload))
+
+    def block() -> None:
+        started.set()
+        release.wait(timeout=5)
+
+    try:
+        page.once("console", callback)
+        dispatcher = page._dispatcher
+        assert dispatcher is not None
+        assert dispatcher.submit(block)
+        assert started.wait(timeout=2)
+        assert dispatcher.submit(lambda: None)
+        bridge.run(impl.fire("console", "first"))
+        assert ("console", callback, True) in page._event_wrappers
+        assert len(impl.listeners["console"]) == 1
+        release.set()
+        dispatcher._queue.join()
+        bridge.run(impl.fire("console", "second"))
+        dispatcher._queue.join()
+        bridge.run(impl.fire("console", "third"))
+        assert dispatcher.submit(drained.set)
+        assert drained.wait(timeout=2)
+        assert delivered == ["second"]
+    finally:
+        release.set()
+        bridge.close()
+
+
+def test_get_pages_returns_same_page_and_off_works_through_it() -> None:
+    bridge = LoopThread()
+    browser = Browser(AsyncBrowser(), bridge)
+    try:
+        page = browser.new_page()
+
+        def callback(_payload: object) -> None:
+            pass
+
+        page.on("console", callback)
+        assert browser.get_pages()[0] is page
+        assert browser.pages()[0] is page
+        browser.get_pages()[0].off("console", callback)
+        assert page._impl.listeners["console"] == []
+        page.close()
+        assert browser.get_pages() == []
+    finally:
+        browser.close()
+        bridge.close()
+
+
+def test_off_waits_for_once_dispatch_instead_of_racing() -> None:
+    bridge = LoopThread()
+    impl = AsyncPage()
+    page = Page(impl, bridge)
+    delivered: list[object] = []
+    helpers: list[threading.Thread] = []
+
+    class RacingWrappers(
+        dict[tuple[str, Callable[[object], object], bool], Callable[[object], object]]
+    ):
+        raced = False
+
+        def __iter__(self) -> Iterator[tuple[str, Callable[[object], object], bool]]:
+            iterator = super().__iter__()
+            if not self.raced:
+                self.raced = True
+                first = next(iterator)
+                helper = threading.Thread(
+                    target=lambda: bridge.run(impl.fire("console", "x"))
+                )
+                helpers.append(helper)
+                helper.start()
+                helper.join(timeout=0.5)
+                yield first
+            yield from iterator
+
+    try:
+        page.once("console", delivered.append)
+        page._event_wrappers = RacingWrappers(page._event_wrappers)
+        page.off("console", lambda _payload: None)
+        for helper in helpers:
+            helper.join(timeout=2)
+            assert not helper.is_alive()
+        dispatcher = page._dispatcher
+        assert dispatcher is not None
+        dispatcher._queue.join()
+        assert delivered == ["x"]
+    finally:
+        bridge.close()
+
+
+@pytest.mark.parametrize("close_owner", ["page", "browser", "bridge"])
+def test_close_stops_page_dispatcher(close_owner: str) -> None:
+    bridge = LoopThread()
+    browser = Browser(AsyncBrowser(), bridge)
+    page = browser.new_page()
+    try:
+        page.on("console", lambda _payload: None)
+        dispatcher = page._dispatcher
+        assert dispatcher is not None
+        close = {"page": page.close, "browser": browser.close, "bridge": bridge.close}
+        close[close_owner]()
+        dispatcher._thread.join(timeout=2)
+        assert not dispatcher._thread.is_alive()
+        if close_owner == "page":
+            assert page._dispatcher is None
     finally:
         bridge.close()

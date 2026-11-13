@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Self, cast
@@ -31,17 +32,22 @@ from ..types.responses import (
     WaitForResponseResponse,
 )
 from ._base import SyncBase
+from ._bridge import CallbackDispatcher
 from ._page_generated import PageGenerated
 from .element_handle import ElementHandle
 
 Callback = Callable[[object], object]
 _SUBSCRIPTION_START_TIMEOUT = 5.0
+_CALLBACK_QUEUE_SIZE = 1024
 
 
 class Page(PageGenerated, SyncBase[Any]):
     def __init__(self, impl: Any, bridge: Any = None) -> None:
         SyncBase.__init__(self, impl, bridge)
         self._event_wrappers: dict[tuple[str, Callback, bool], Callback] = {}
+        self._listeners_lock = threading.Lock()
+        self._dispatcher: CallbackDispatcher | None = None
+        self._dispatcher_closed = False
 
     @property
     def closed(self) -> bool:
@@ -93,9 +99,6 @@ class Page(PageGenerated, SyncBase[Any]):
         once: bool = False,
     ) -> Callback:
         key = (event, callback, once)
-        existing = self._event_wrappers.get(key)
-        if existing is not None:
-            return existing
 
         def route_error(error: BaseException) -> None:
             async def emit_error() -> None:
@@ -104,17 +107,29 @@ class Page(PageGenerated, SyncBase[Any]):
             self._bridge.submit(emit_error())
 
         def dispatch(payload: object) -> None:
-            if once:
-                self._event_wrappers.pop(key, None)
-                self._impl.off(event, dispatch)
-            self._bridge.dispatcher.submit(
-                callback,
-                payload,
-                on_error=route_error if event != "error" else None,
-            )
+            with self._listeners_lock:
+                if once and key not in self._event_wrappers:
+                    return
+                dispatcher = self._dispatcher
+                queued = dispatcher is not None and dispatcher.submit(
+                    callback,
+                    payload,
+                    on_error=route_error if event != "error" else None,
+                )
+                if once and queued:
+                    self._event_wrappers.pop(key, None)
+                    self._impl.off(event, dispatch)
 
-        self._event_wrappers[key] = dispatch
-        return dispatch
+        with self._listeners_lock:
+            existing = self._event_wrappers.get(key)
+            if existing is not None:
+                return existing
+            if self._dispatcher is None and not self._dispatcher_closed:
+                self._dispatcher = self._bridge.new_dispatcher(
+                    max_queue_size=_CALLBACK_QUEUE_SIZE
+                )
+            self._event_wrappers[key] = dispatch
+            return dispatch
 
     def _wait_for_subscription(self, event: str) -> None:
         waiter = getattr(self._impl, "_wait_subscription_started", None)
@@ -143,12 +158,13 @@ class Page(PageGenerated, SyncBase[Any]):
         return self
 
     def off(self, event: str, callback: Callback) -> Self:
-        keys = [key for key in self._event_wrappers if key[:2] == (event, callback)]
-        wrappers = [
-            wrapper
-            for wrapper in (self._event_wrappers.pop(key, None) for key in keys)
-            if wrapper is not None
-        ]
+        with self._listeners_lock:
+            keys = [key for key in self._event_wrappers if key[:2] == (event, callback)]
+            wrappers = [
+                wrapper
+                for wrapper in (self._event_wrappers.pop(key, None) for key in keys)
+                if wrapper is not None
+            ]
         for wrapper in wrappers or [callback]:
             self._invoke("off", event, wrapper)
         return self
@@ -157,11 +173,12 @@ class Page(PageGenerated, SyncBase[Any]):
         return bool(self._invoke("emit", event, payload))
 
     def remove_all_listeners(self, event: str | None = None) -> Self:
-        if event is None:
-            self._event_wrappers.clear()
-        else:
-            for key in [key for key in self._event_wrappers if key[0] == event]:
-                self._event_wrappers.pop(key, None)
+        with self._listeners_lock:
+            if event is None:
+                self._event_wrappers.clear()
+            else:
+                for key in [key for key in self._event_wrappers if key[0] == event]:
+                    self._event_wrappers.pop(key, None)
         self._invoke("remove_all_listeners", event)
         return self
 
@@ -376,7 +393,16 @@ class Page(PageGenerated, SyncBase[Any]):
         try:
             self._invoke("close")
         finally:
-            self._event_wrappers.clear()
+            with self._listeners_lock:
+                self._event_wrappers.clear()
+            self._close_dispatcher()
+
+    def _close_dispatcher(self) -> None:
+        with self._listeners_lock:
+            dispatcher, self._dispatcher = self._dispatcher, None
+            self._dispatcher_closed = True
+        if dispatcher is not None:
+            dispatcher.close()
 
     def __enter__(self) -> Self:
         return self

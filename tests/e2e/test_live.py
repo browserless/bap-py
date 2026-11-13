@@ -8,6 +8,7 @@ from pytest import CaptureFixture
 
 import browserless_bap as bap
 import browserless_bap.sync_api as bap_sync
+from browserless_bap.errors import BrowserQLError
 
 from .config import LiveConfig, assert_secret_absent
 
@@ -287,3 +288,33 @@ async def test_opt_in_fields_live(
             assert [item.outer_html for item in children] == ["<b>opt</b>"]
     captured = capsys.readouterr()
     assert_secret_absent(live_config.token, [captured.out, captured.err])
+
+
+@pytest.mark.e2e
+async def test_wait_for_function_promise_flag_waits_for_plain_predicate(
+    live_config: LiveConfig,
+    capsys: CaptureFixture[str],
+) -> None:
+    async with bap.Browserless.connect(
+        browser_ws_endpoint=live_config.url,
+        token=live_config.token,
+        timeout=live_config.timeout_ms,
+    ) as browser:
+        async with browser.page() as page:
+            await page.goto(EXAMPLE_URL, timeout=live_config.timeout_ms)
+            with pytest.raises(BrowserQLError) as error:
+                await page.wait_for_function(
+                    "() => window.__bapNeverReady === true",
+                    timeout=1500,
+                    complete_on_promise_resolution=True,
+                )
+            result = await page.wait_for_function(
+                "async () => { await new Promise(r => setTimeout(r, 100)); "
+                "return false; }",
+                timeout=3000,
+                complete_on_promise_resolution=True,
+            )
+            assert "time" in result
+
+    captured = capsys.readouterr()
+    assert_secret_absent(live_config.token, [error.value, captured.out, captured.err])

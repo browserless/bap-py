@@ -44,7 +44,7 @@ request; never edit the version or the changelog by hand.
   expiring is terminal for that page's connection; retries require a new page.
 - Never block the asyncio loop with file I/O.
 - Keep strong references to background tasks until completion.
-- Sync callbacks run on the callback dispatcher, never the bridge loop.
+- Sync callbacks run on their page's callback dispatcher, never the bridge loop.
 
 ## Commands
 

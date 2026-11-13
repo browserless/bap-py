@@ -15,6 +15,7 @@ import queue
 import threading
 import time
 import warnings
+import weakref
 from collections.abc import Awaitable, Callable, Coroutine
 from contextlib import suppress
 from typing import Protocol, TypeVar, cast
@@ -152,21 +153,23 @@ class LoopThread:
         self._pending: set[cf.Future[object]] = set()
         self._tracked_lock = threading.Lock()
         self._tracked_browsers: dict[int, object] = {}
+        self._dispatchers: weakref.WeakSet[CallbackDispatcher] = weakref.WeakSet()
         self._thread = threading.Thread(
             target=self._thread_main,
             name="bap-sync-loop",
             daemon=True,
         )
-        self._dispatcher = CallbackDispatcher()
         self._thread.start()
         if not self._ready.wait(timeout=5):
             raise RuntimeError("bap sync event loop failed to start")
         if self._loop is None:
             raise RuntimeError("bap sync event loop failed during startup")
 
-    @property
-    def dispatcher(self) -> CallbackDispatcher:
-        return self._dispatcher
+    def new_dispatcher(self, *, max_queue_size: int = 1024) -> CallbackDispatcher:
+        dispatcher = CallbackDispatcher(max_queue_size=max_queue_size)
+        with self._tracked_lock:
+            self._dispatchers.add(dispatcher)
+        return dispatcher
 
     def _thread_main(self) -> None:
         loop = asyncio.new_event_loop()
@@ -300,7 +303,10 @@ class LoopThread:
 
     def close(self) -> None:
         if self._closed.is_set():
-            self._dispatcher.close()
+            with self._tracked_lock:
+                dispatchers = tuple(self._dispatchers)
+            for dispatcher in dispatchers:
+                dispatcher.close()
             return
         if self._stopping:
             return
@@ -312,7 +318,10 @@ class LoopThread:
         ):
             with suppress(BaseException):
                 self.run(self._close_tracked_browsers(), timeout=5)
-        self._dispatcher.close()
+        with self._tracked_lock:
+            dispatchers = tuple(self._dispatchers)
+        for dispatcher in dispatchers:
+            dispatcher.close()
         loop = self._loop
         if loop is not None and loop.is_running():
             loop.call_soon_threadsafe(loop.stop)

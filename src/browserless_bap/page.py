@@ -52,6 +52,8 @@ from .types.responses import (
     WaitForResponseResponse,
 )
 
+_ASYNC_PREDICATE = re.compile(r"\s*async\b")
+
 
 @dataclass
 class _LiveHandoff:
@@ -430,7 +432,9 @@ class Page(PageGenerated, PageEventsMixin):
         complete_on_promise_resolution: bool | UnsetType = UNSET,
     ) -> WaitForFunction:
         predicate = expression
-        if complete_on_promise_resolution is True:
+        if complete_on_promise_resolution is True and _ASYNC_PREDICATE.match(
+            expression
+        ):
             predicate = f"async () => {{ await ({expression})(); return true; }}"
         args = _drop_unset(
             {

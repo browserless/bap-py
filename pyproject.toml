@@ -49,7 +49,9 @@ path = "src/browserless_bap/_version.py"
 
 [tool.hatch.build.targets.sdist]
 include = [
+  "/.release-please-manifest.json",
   "/AGENTS.md",
+  "/CHANGELOG.md",
   "/CONTRIBUTING.md",
   "/LICENSE",
   "/README.md",

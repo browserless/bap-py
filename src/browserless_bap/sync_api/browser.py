@@ -30,9 +30,11 @@ class Browser(SyncBase[Any]):
 
     def get_pages(self) -> list[Page]:
         with self._pages_lock:
-            self._pages = {
-                key: page for key, page in self._pages.items() if not page.closed
-            }
+            stale = [page for page in self._pages.values() if page.closed]
+            for page in stale:
+                del self._pages[id(page._impl)]
+        for page in stale:
+            page._close_dispatcher()
         impls = self._invoke("get_pages")
         return [self._wrap_page(impl) for impl in impls]
 

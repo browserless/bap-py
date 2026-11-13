@@ -577,7 +577,7 @@ def test_off_waits_for_once_dispatch_instead_of_racing() -> None:
         bridge.close()
 
 
-@pytest.mark.parametrize("close_owner", ["page", "browser", "bridge"])
+@pytest.mark.parametrize("close_owner", ["page", "browser", "bridge", "implementation"])
 def test_close_stops_page_dispatcher(close_owner: str) -> None:
     bridge = LoopThread()
     browser = Browser(AsyncBrowser(), bridge)
@@ -587,7 +587,11 @@ def test_close_stops_page_dispatcher(close_owner: str) -> None:
         dispatcher = page._dispatcher
         assert dispatcher is not None
         close = {"page": page.close, "browser": browser.close, "bridge": bridge.close}
-        close[close_owner]()
+        if close_owner == "implementation":
+            bridge.run(page._impl.close())
+            assert browser.get_pages() == []
+        else:
+            close[close_owner]()
         dispatcher._thread.join(timeout=2)
         assert not dispatcher._thread.is_alive()
         if close_owner == "page":

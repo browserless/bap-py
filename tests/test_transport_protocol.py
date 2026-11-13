@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import json
 import logging
 from typing import cast
@@ -272,6 +273,44 @@ async def test_cancelled_connect_waiter_does_not_poison_others() -> None:
         connection.receive({"id": "2", "type": "complete"})
         assert await three == {}
     await transport.close()
+
+
+async def test_abandoned_connect_failure_has_no_unretrieved_exception() -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+    finished = asyncio.Event()
+
+    async def factory(_url: str | None) -> FakeConnection:
+        started.set()
+        await release.wait()
+        finished.set()
+        raise ConnectionError("factory failed")
+
+    loop = asyncio.get_running_loop()
+    previous_handler = loop.get_exception_handler()
+    errors: list[dict[str, object]] = []
+    loop.set_exception_handler(lambda _loop, context: errors.append(context))
+    try:
+        transport = Transport(
+            "ws://unused", transport_factory=cast(TransportFactory, factory)
+        )
+        waiter: asyncio.Task[object] = asyncio.create_task(
+            transport.send("query { x }")
+        )
+        await started.wait()
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        del waiter
+        release.set()
+        await finished.wait()
+        await asyncio.sleep(0)
+        await transport.close()
+        del transport
+        gc.collect()
+        assert errors == []
+    finally:
+        loop.set_exception_handler(previous_handler)
 
 
 async def test_complete_during_timeout_still_raises_timeout() -> None:

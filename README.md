@@ -68,8 +68,9 @@ logging.basicConfig(level=logging.INFO)
 logging.getLogger("browserless_bap").setLevel(logging.DEBUG)
 ```
 
-SDK logs redact tokens and `Authorization` header values. Frame logs can still
-contain page content and other application data; review them before sharing.
+The `browserless_bap.websockets` logger redacts tokens and `Authorization` header
+values. Frame logs can still contain page content and other application data;
+review them before sharing.
 
 ## Timeouts
 

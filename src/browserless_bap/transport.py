@@ -178,6 +178,9 @@ class Transport:
 
         if self._ready is None:
             self._ready = asyncio.create_task(self._connect())
+            self._ready.add_done_callback(
+                lambda task: None if task.cancelled() else task.exception()
+            )
         return self._ready
 
     async def _connect(self) -> None:

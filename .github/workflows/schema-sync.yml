@@ -1,0 +1,92 @@
+name: Schema sync
+
+# Once a day, check npm for a newer @browserless.io/bap-ts release and propose
+# a pull request that vendors its schema and the regenerated code.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: schema-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.repository == 'browserless/bap-py'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.diff.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - name: Sync the latest published schema
+        run: python scripts/sync_schema.py --from-npm latest
+      - name: Regenerate code
+        run: python scripts/codegen.py
+      - name: Collect changes
+        id: diff
+        run: |
+          if git diff --quiet -- src/browserless_bap/mutations.graphql; then
+            echo "Schema unchanged."
+            exit 0
+          fi
+          version="$(python -c 'import tomllib; print(tomllib.load(open("schema.lock", "rb"))["npm_version"])')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          git diff --binary > "$RUNNER_TEMP/schema-sync.patch"
+      - if: steps.diff.outputs.version != ''
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: schema-sync-patch
+          path: ${{ runner.temp }}/schema-sync.patch
+          if-no-files-found: error
+
+  pull-request:
+    needs: sync
+    if: needs.sync.outputs.version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: schema-sync-patch
+          path: ${{ runner.temp }}
+      - name: Open the sync pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.sync.outputs.version }}
+        run: |
+          branch="schema-sync/bap-ts-$VERSION"
+          existing_pr="$(gh pr list --head "$branch" --state all --json url --jq '.[0].url // empty')"
+          if [ -n "$existing_pr" ]; then
+            echo "Pull request already exists: $existing_pr"
+            exit 0
+          fi
+          if ! git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPOSITORY.git" "$branch" >/dev/null; then
+            git apply "$RUNNER_TEMP/schema-sync.patch"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git switch -c "$branch"
+            git commit -am "feat(schema): sync with @browserless.io/bap-ts $VERSION"
+            git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "$branch"
+          fi
+          gh pr create --base main --head "$branch" \
+            --title "feat(schema): sync with @browserless.io/bap-ts $VERSION" \
+            --body "Automated sync of the vendored BrowserQL schema and generated code from @browserless.io/bap-ts $VERSION on npm. If this diff removes or renames anything, change the title to feat!: before merging. Pull requests opened with the built-in workflow token do not start checks: close and reopen this pull request to run them."

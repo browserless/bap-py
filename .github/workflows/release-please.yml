@@ -1,0 +1,42 @@
+name: Release Please
+
+# Maintains a single draft "Release PR" off main. As conventional-commit changes
+# land, release-please bumps src/browserless_bap/_version.py and
+# .release-please-manifest.json and regenerates CHANGELOG.md on that PR. The PR
+# opens as a draft and is never auto-merged: the open PR is the review window.
+# Marking it ready and merging creates the GitHub Release and the vX.Y.Z tag,
+# which triggers publish.yml (it listens on v* tags; the PyPI upload still waits
+# for a maintainer's approval on the pypi environment).
+
+on:
+  push:
+    branches: [main]
+
+# A burst of pushes to main would otherwise race, and the last write to the
+# release branch could come from a run that read a stale tree.
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  release-please:
+    if: github.repository == 'browserless/bap-py'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # App token (not GITHUB_TOKEN) so the tag it creates triggers publish.yml.
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ vars.BROWSERLESS_ACTIONS_CLIENT_ID }}
+          private-key: ${{ secrets.BROWSERLESS_ACTIONS_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

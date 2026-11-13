@@ -5,41 +5,29 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
+from urllib.parse import quote
 
-from .types.options import ClickOptions, TypeOptions
+from .types.options import ClickOptions, QuerySelectorOptions, TypeOptions
 from .types.responses import ClickResponse, HoverResponse, SelectResponse, TypeResponse
 
 if TYPE_CHECKING:
     from .page import Page
 
 
-def _resolve_selector(selector: str, *, all_matches: bool = False) -> str:
+# BrowserQL pastes selectors into JavaScript escaping only double quotes.
+# URI-encoded JSON survives that extra string parse, including nested selectors.
+# JSON escapes lone UTF-16 surrogates before URI encoding can reject them.
+def _selector_literal(selector: str) -> str:
+    encoded = quote(json.dumps(selector), safe="!~*'()")
+    return f"JSON.parse(decodeURIComponent({json.dumps(encoded)}))"
+
+
+def _selector_expression(selector: str, *, all_matches: bool = False) -> str:
     method = "querySelectorAll" if all_matches else "querySelector"
-    fallback = "[]" if all_matches else "null"
-    encoded = json.dumps(selector)
+    quoted = _selector_literal(selector)
     return (
-        "(() => { try { return document."
-        f"{method}({encoded}); "
-        f"}} catch {{ return eval({encoded}) ?? {fallback}; }} }})()"
-    )
-
-
-def _selector_at(selector: str, index: int) -> str:
-    resolved = _resolve_selector(selector, all_matches=True)
-    return f"({resolved})[{index}] ?? null"
-
-
-def _scoped_selector(parent: str, selector: str, *, all_matches: bool = False) -> str:
-    resolved_parent = _resolve_selector(parent)
-    method = "querySelectorAll" if all_matches else "querySelector"
-    fallback = "[]" if all_matches else "null"
-    encoded = json.dumps(selector)
-    return (
-        "(() => { "
-        f"const root = {resolved_parent}; "
-        f"if (!root) return {fallback}; "
-        f"return root.{method}({encoded}); "
-        "})()"
+        f"(() => {{ try {{ return document.{method}({quoted}); }} "
+        f"catch {{ return eval({quoted}); }} }})()"
     )
 
 
@@ -109,12 +97,19 @@ class ElementHandle:
     async def text_content(self) -> str:
         return await self._page.eval_on_selector(self._selector)
 
-    async def query_selector(self, selector: str) -> ElementHandle | None:
+    async def query_selector(
+        self, selector: str, **options: Unpack[QuerySelectorOptions]
+    ) -> ElementHandle | None:
         return await self._page.query_selector(
-            _scoped_selector(self._selector, selector)
+            f"{_selector_expression(self._selector)}?.querySelector({_selector_literal(selector)})",
+            **options,
         )
 
-    async def query_selector_all(self, selector: str) -> list[ElementHandle]:
+    async def query_selector_all(
+        self, selector: str, **options: Unpack[QuerySelectorOptions]
+    ) -> list[ElementHandle]:
         return await self._page.query_selector_all(
-            _scoped_selector(self._selector, selector, all_matches=True)
+            f"{_selector_expression(self._selector)}"
+            f"?.querySelectorAll({_selector_literal(selector)}) ?? []",
+            **options,
         )

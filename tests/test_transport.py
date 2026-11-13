@@ -7,7 +7,7 @@ import traceback
 import pytest
 from websockets.asyncio.server import ServerConnection, serve
 
-from browserless_bap import Browserless
+from browserless_bap import Browserless, __version__
 from browserless_bap.errors import BrowserQLError, ConnectionError
 from browserless_bap.errors import TimeoutError as BAPTimeoutError
 from browserless_bap.transport import Transport
@@ -137,7 +137,7 @@ async def test_real_socket_user_agent_and_large_next_frame() -> None:
         result: dict[str, str] = await transport.send("query { value }")
         await transport.close()
 
-    assert user_agents == ["browserless-bap/0.2.0"]
+    assert user_agents == [f"browserless-bap/{__version__}"]
     assert result == {"value": payload}
 
 

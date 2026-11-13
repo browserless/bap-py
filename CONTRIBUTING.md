@@ -35,6 +35,8 @@ python -m venv /tmp/bap-wheel-smoke
 The live suite (`pytest -m e2e`) connects to a real Browserless BrowserQL
 endpoint and uses your account. It runs only when selected with `-m e2e` and is
 skipped when `BROWSERLESS_TOKEN` is unset.
+The "Live E2E" workflow runs this suite nightly with a token stored on the
+`live-e2e` environment.
 `BROWSERLESS_URL` defaults to `wss://production-sfo.browserless.io/chromium/bql`
 and may be any `ws://` or `wss://` BrowserQL endpoint, for example another
 region or a self-hosted server:
@@ -55,21 +57,25 @@ The integrity check is self-contained and needs no sibling repository:
 python scripts/sync_schema.py --check
 ```
 
-By default, syncing reads `../bap-ts/src/mutations.graphql` from a sibling
-checkout of the TypeScript SDK:
+Syncing downloads `src/mutations.graphql` from a named `@browserless.io/bap-ts`
+npm release (version 2.2.0 or later), verifies npm's integrity hash, and records
+the resolved version and integrity hash in `schema.lock`. No Node.js or private
+checkout is required:
 
 ```bash
-python scripts/sync_schema.py
+python scripts/sync_schema.py --from-npm 2.2.0
+python scripts/sync_schema.py --from-npm latest
 ```
 
-Contributors without that checkout can pass any schema file with `--schema`,
-for example `src/mutations.graphql` from the published `@browserless.io/bap-ts`
-npm package (version 2.2.0 or later):
+For an unreleased schema, pass a schema file with `--schema`; its provenance
+records only the file name:
 
 ```bash
-python scripts/sync_schema.py --from-bap-ts
-python scripts/sync_schema.py --schema /path/to/mutations.graphql
+python scripts/sync_schema.py --schema mutations.graphql
 ```
+
+A daily workflow opens a sync pull request when a newer npm release changes
+the schema.
 
 Schema and codegen changes must include `schema.lock` and all regenerated
 files. Generated files and AUTOGEN regions must not be edited manually.
@@ -88,6 +94,25 @@ with `python scripts/docs.py --output <directory>`, which writes Docusaurus
   issues (for example `Closes #123`).
 - Include tests for behavior changes.
 - Do not publish packages or create release tags from a pull request branch.
+
+## Releases
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please).
+Pull requests are squash-merged, so each PR title becomes one commit on `main`, and its
+Conventional Commits type decides the next version and the changelog entry:
+
+- `fix:` → patch release, listed under "Bug Fixes".
+- `feat:` → minor release, listed under "Features".
+- `feat!:`, or a `BREAKING CHANGE:` footer → while the version is `0.x`, a minor
+  release; from `1.0.0`, a major one.
+- `docs:`, `test:`, `ci:`, `build:`, `chore:`, `refactor:`, `style:` → no release on
+  their own and hidden from the changelog.
+
+release-please keeps one draft release pull request open against `main` with the next
+version and changelog. A maintainer marks it ready and merges it; that creates the
+GitHub Release and the `vX.Y.Z` tag, which runs `publish.yml` to upload to PyPI after a
+maintainer approves the `pypi` deployment. Do not edit `_version.py`,
+`.release-please-manifest.json` or `CHANGELOG.md` by hand.
 
 ## Public repository rules
 

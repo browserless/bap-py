@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, Unpack, cast
 
-from ..types.options import ClickOptions, TypeOptions
+from ..types.options import ClickOptions, QuerySelectorOptions, TypeOptions
 from ..types.responses import ClickResponse, HoverResponse, SelectResponse, TypeResponse
 from ._base import SyncBase
 
@@ -61,10 +61,16 @@ class ElementHandle(SyncBase[Any]):
     def text_content(self) -> str:
         return cast(str, self._invoke("text_content"))
 
-    def query_selector(self, selector: str) -> ElementHandle | None:
-        value = self._invoke("query_selector", selector)
+    def query_selector(
+        self, selector: str, **options: Unpack[QuerySelectorOptions]
+    ) -> ElementHandle | None:
+        value = self._invoke("query_selector", selector, **options)
         return None if value is None else ElementHandle(value, self._bridge)
 
-    def query_selector_all(self, selector: str) -> list[ElementHandle]:
-        values = cast(list[object], self._invoke("query_selector_all", selector))
+    def query_selector_all(
+        self, selector: str, **options: Unpack[QuerySelectorOptions]
+    ) -> list[ElementHandle]:
+        values = cast(
+            list[object], self._invoke("query_selector_all", selector, **options)
+        )
         return [ElementHandle(value, self._bridge) for value in values]

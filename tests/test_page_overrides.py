@@ -10,6 +10,7 @@ import pytest
 
 from browserless_bap._page_generated import PageGenerated
 from browserless_bap._unset import UnsetType
+from browserless_bap.element_handle import _selector_expression, _selector_literal
 from browserless_bap.page import Page
 from browserless_bap.transport import (
     MessageListener,
@@ -258,10 +259,9 @@ async def test_query_selector_all_handles_ignore_nonmatching_siblings() -> None:
     await handles[0].click()
     await handles[1].click()
 
-    assert 'document.querySelectorAll(".item")' in handles[0].selector
-    assert ":nth-child" not in handles[0].selector
-    assert handles[0].selector.endswith("[0] ?? null")
-    assert handles[1].selector.endswith("[1] ?? null")
+    expression = _selector_expression(".item", all_matches=True)
+    assert handles[0].selector == f"({expression})[0]"
+    assert handles[1].selector == f"({expression})[1]"
     assert page.calls[1][1] == {"selector": handles[0].selector}
     assert page.calls[2][1] == {"selector": handles[1].selector}
     await page.close()
@@ -277,8 +277,56 @@ async def test_element_handle_descendant_selector_scopes_every_alternative() -> 
     args = page.calls[1][1]
     assert args is not None
     scoped = cast(str, args["selector"])
-    assert 'root.querySelector("button, a")' in scoped
+    assert scoped == (
+        f"{_selector_expression(handle.selector)}"
+        f"?.querySelector({_selector_literal('button, a')})"
+    )
     assert ".item button, a" not in scoped
+    await page.close()
+
+
+@pytest.mark.asyncio
+async def test_element_handle_queries_forward_options() -> None:
+    page = SelectorListPage()
+    handle = (await page.query_selector_all(".item"))[0]
+    await handle.query_selector("li", timeout=5000, visible=True)
+    await handle.query_selector_all("li", timeout=750, visible=False)
+
+    assert page.calls[2][1] is not None
+    assert page.calls[2][1]["selector"] == (
+        f"{_selector_expression(handle.selector)}"
+        f"?.querySelectorAll({_selector_literal('li')}) ?? []"
+    )
+    for call, timeout, visible in zip(
+        page.calls[1:], [5000, 750], [True, False], strict=True
+    ):
+        assert call[1] is not None
+        assert call[1]["timeout"] == timeout
+        assert call[1]["visible"] is visible
+        assert call[3] == timeout
+    await page.close()
+
+
+@pytest.mark.asyncio
+async def test_query_selector_all_encodes_once_and_skips_empty_results(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import browserless_bap.element_handle as module
+
+    calls: list[str] = []
+
+    def encode(selector: str, *, all_matches: bool = False) -> str:
+        calls.append(selector)
+        return _selector_expression(selector, all_matches=all_matches)
+
+    monkeypatch.setattr(module, "_selector_expression", encode)
+    page = SelectorListPage()
+    empty_page = NullResultPage()
+    assert await empty_page.query_selector_all(".absent") == []
+    assert calls == []
+    assert len(await page.query_selector_all(".item")) == 2
+    assert calls == [".item"]
+    await empty_page.close()
     await page.close()
 
 

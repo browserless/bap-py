@@ -22,8 +22,10 @@ To change generated output:
 2. Run `python scripts/codegen.py`.
 3. Run the drift check and commit the inputs and outputs together.
 
-`src/browserless_bap/_version.py` is hand-written. Hatch reads the package version from
-that file so installed wheels never need `pyproject.toml`.
+`src/browserless_bap/_version.py` is the single version source. Hatch reads the package
+version from that file so installed wheels never need `pyproject.toml`. release-please
+bumps it (with `.release-please-manifest.json` and `CHANGELOG.md`) in its release pull
+request; never edit the version or the changelog by hand.
 
 ## Runtime constraints
 

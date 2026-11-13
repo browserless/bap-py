@@ -4,10 +4,6 @@ The Python client for Browserless's Browser Automation Protocol (BAP).
 `browserless-bap` provides Playwright-style async and sync APIs over Browserless's
 GraphQL-over-WebSocket transport.
 
-> [!NOTE]
-> The package is under active development. The first PyPI release will be
-> published after the initial trusted-publisher setup is complete.
-
 ## Requirements
 
 - Python 3.11 or newer
@@ -22,6 +18,8 @@ pip install browserless-bap
 ## Quick start
 
 ```python
+import asyncio
+
 import browserless_bap as bap
 
 
@@ -33,9 +31,29 @@ async def run() -> None:
         async with browser.page() as page:
             await page.goto("https://example.com")
             print(await page.title())
+
+
+asyncio.run(run())
 ```
 
-The sync API is available from `browserless_bap.sync_api`.
+The same script with the sync API, from `browserless_bap.sync_api`:
+
+```python
+import browserless_bap.sync_api as bap
+
+with bap.Browserless.connect(
+    browser_ws_endpoint="wss://production-sfo.browserless.io/chromium/bql",
+    token="your-api-token",
+) as browser:
+    with browser.page() as page:
+        page.goto("https://example.com")
+        print(page.title())
+```
+
+> [!TIP]
+> Jupyter notebooks already run an asyncio event loop, so use the async API
+> there and replace `asyncio.run(run())` with `await run()`. The sync API
+> raises `RuntimeError` inside a running event loop.
 
 ## API methods
 
@@ -195,12 +213,13 @@ remain; cached results remain available. Public listeners use `on`/`off`.
 For reused IDs, the server emits the preceding handoff’s completion before the
 replacement’s completion on the same ordered subscription stream.
 
-Requires a server with the `liveComplete` subscription, `closeLiveURL` mutation,
-and `StringOrInstructions` support for live URL instructions (the client equivalent
-is bap-ts 2.2). This is a coordinated client/server cutover, not a rolling
-server-first upgrade: older clients declare `String`, which the new server
-rejects, and this client declares `StringOrInstructions`, which older servers
-reject, even when the instructions value is a string.
+Live URL handoffs need a Browserless server that supports
+`wait_for_live_complete()` (the `liveComplete` event), `close_live_url()` and
+instruction cards. This client always sends live URL instructions in the newer
+format, which older servers reject even when the instructions are a plain
+string, and older clients send a format that newer servers reject. Upgrading is
+therefore a coordinated client/server cutover, not a rolling server-first
+upgrade.
 
 For self-hosted upgrades, pause new handoffs and drain active ones, upgrade the
 server and all clients together, then verify mint, completion, and close before

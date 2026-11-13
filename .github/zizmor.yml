@@ -1,0 +1,5 @@
+rules:
+  dependabot-cooldown:
+    config:
+      # Both updaters in dependabot.yml use a 3-day cooldown.
+      days: 3

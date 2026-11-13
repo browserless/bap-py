@@ -8,12 +8,12 @@ dynamic = ["version"]
 description = "Python async and sync client for Browserless's Browser Automation Protocol"
 readme = "README.md"
 requires-python = ">=3.11"
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{name = "Browserless", email = "eng@browserless.io"}]
 keywords = ["browserless", "browserql", "browser-automation", "playwright"]
 classifiers = [
   "Development Status :: 3 - Alpha",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.11",
@@ -38,8 +38,10 @@ dev = [
 ]
 
 [project.urls]
-Documentation = "https://docs.browserless.io"
 Homepage = "https://github.com/browserless/bap-py"
+Documentation = "https://docs.browserless.io/bap/python/reference"
+Source = "https://github.com/browserless/bap-py"
+Changelog = "https://github.com/browserless/bap-py/releases"
 Issues = "https://github.com/browserless/bap-py/issues"
 
 [tool.hatch.version]

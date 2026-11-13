@@ -364,4 +364,5 @@ class ConnectOptions(TypedDict, total=False):
     browser_ws_endpoint: NotRequired[str]
     token: NotRequired[str]
     timeout: NotRequired[float]
+    connect_timeout: NotRequired[float]
     transport: NotRequired[object]

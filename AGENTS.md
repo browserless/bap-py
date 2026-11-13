@@ -33,6 +33,13 @@ that file so installed wheels never need `pyproject.toml`.
   dictionaries retain GraphQL field names.
 - Transport clients must use `max_size=None`, `ping_interval=20`,
   `ping_timeout=None`, `open_timeout=None`, and `close_timeout=5`.
+- Bound the whole WebSocket dial in `Transport._connect` with `asyncio.timeout`;
+  keep `open_timeout=None`. Use `connect_timeout` (defaulting to `timeout`) in
+  milliseconds; values at or below zero disable the deadline. Translate expiry
+  to the SDK `TimeoutError` with `operation == "connect"`.
+- Apply the single 5000 ms client headroom for server-timeout mutations in
+  `Page._execute_operation`, not in individual methods. A connect deadline
+  expiring is terminal for that page's connection; retries require a new page.
 - Never block the asyncio loop with file I/O.
 - Keep strong references to background tasks until completion.
 - Sync callbacks run on the callback dispatcher, never the bridge loop.

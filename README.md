@@ -55,6 +55,38 @@ with bap.Browserless.connect(
 > there and replace `asyncio.run(run())` with `await run()`. The sync API
 > raises `RuntimeError` inside a running event loop.
 
+## Logging
+
+The SDK uses Python's `logging` module with the `browserless_bap` logger.
+WebSocket frame logs use its child logger, `browserless_bap.websockets`;
+setting the parent to `DEBUG` enables both SDK diagnostics and frame logs.
+
+```python
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("browserless_bap").setLevel(logging.DEBUG)
+```
+
+SDK logs redact tokens and `Authorization` header values. Frame logs can still
+contain page content and other application data; review them before sharing.
+
+## Timeouts
+
+Timeout values are in milliseconds. The default per-step `timeout` is `30000`.
+For mutations with a server-side timeout, the client adds `5000` ms of headroom
+once, allowing the server to return its timeout response before the client deadline.
+
+`connect_timeout` defaults to `timeout` and bounds the entire WebSocket dial,
+including connection setup and handshake. A value of `0` or less disables that
+connection deadline. Connection timeouts raise the SDK's `browserless_bap.TimeoutError`
+with `operation == "connect"`.
+
+A connect deadline expiring is terminal for that page's connection. To retry,
+create a new page rather than reusing the timed-out page. These rules apply to
+both the async and sync APIs. Live URL completion waits have their own timeout
+behavior, described below.
+
 ## API methods
 
 This table is generated from the vendored GraphQL schema. Do not edit the

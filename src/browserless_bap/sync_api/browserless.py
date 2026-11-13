@@ -21,6 +21,7 @@ class Browserless:
         token: str | None = None,
         timeout: float = 30_000,
         transport: Any = None,
+        connect_timeout: float | None = None,
     ) -> Browser:
         bridge = get_loop_thread()
         impl = AsyncBrowserless.connect(
@@ -28,6 +29,7 @@ class Browserless:
             token=token,
             timeout=timeout,
             transport=transport,
+            connect_timeout=connect_timeout,
         )
         bridge.track_browser(impl)
         return Browser(impl, bridge)

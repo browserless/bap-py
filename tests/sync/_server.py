@@ -14,7 +14,8 @@ from browserless_bap.transport import SUBPROTOCOL
 class ServerThread:
     """A graphql-transport-ws fake on a loop independent from the sync bridge."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, reply: bool = True) -> None:
+        self.reply = reply
         self._ready = threading.Event()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._shutdown: asyncio.Event | None = None
@@ -99,6 +100,8 @@ class ServerThread:
             if frame_type != "subscribe":
                 continue
             self.subscribe_count += 1
+            if not self.reply:
+                continue
             operation_id = frame["id"]
             query = frame.get("payload", {}).get("query", "")
             if query.lstrip().startswith("subscription") and "console" in query:

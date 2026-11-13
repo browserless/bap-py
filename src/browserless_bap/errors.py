@@ -20,10 +20,14 @@ class BrowserQLError(BAPError):
 
     code = "BQL"
 
-    def __init__(self, errors: Sequence[Mapping[str, object]]) -> None:
-        self.errors = [dict(error) for error in errors]
+    def __init__(self, errors: Sequence[object]) -> None:
+        self.errors = [
+            dict(error) if isinstance(error, Mapping) else {"message": str(error)}
+            for error in errors
+        ]
         message = "; ".join(
-            str(error.get("message", "Unknown BrowserQL error")) for error in errors
+            str(error.get("message", "Unknown BrowserQL error"))
+            for error in self.errors
         )
         super().__init__(message or "Unknown BrowserQL error")
 

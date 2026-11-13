@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import builtins
 import inspect
 import json
 import logging
@@ -27,6 +28,7 @@ except ImportError:  # pragma: no cover - only possible in a broken source tree
     __version__ = "0.0.0"
 
 SUBPROTOCOL = "graphql-transport-ws"
+OPERATION_TIMEOUT_CUSHION_MS = 5_000
 T = TypeVar("T")
 MaybeAwaitable: TypeAlias = Awaitable[None] | None
 Unsubscribe: TypeAlias = Callable[[], Awaitable[None]]
@@ -36,10 +38,14 @@ logger = logging.getLogger("browserless_bap")
 
 class _RedactSecrets(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+        except Exception:
+            return True
         record.msg = re.sub(
             r"(Authorization: )[^\r\n]+",
             r"\1<redacted>",
-            _safe_error_message(record.getMessage()),
+            _redact(message),
             flags=re.IGNORECASE,
         )
         record.args = ()
@@ -145,10 +151,13 @@ class Transport:
         url: str | None,
         default_timeout: float = 30_000,
         transport_factory: TransportFactory | None = None,
+        *,
+        connect_timeout: float | None = None,
     ) -> None:
         self._url = url
         self._default_timeout = default_timeout
-        self._transport_factory = transport_factory or self._default_factory
+        self._connect_timeout = connect_timeout
+        self._transport_factory = transport_factory
         self._connection: ConnectionTransport | None = None
         self._ready: asyncio.Task[None] | None = None
         self._operations: dict[str, _Operation] = {}
@@ -174,37 +183,62 @@ class Transport:
     async def _connect(self) -> None:
         if self._closed:
             raise ConnectionError("Transport is closed")
+        deadline = self.operation_timeout(self._connect_timeout)
+        connection: ConnectionTransport | None = None
+        cm = asyncio.timeout(deadline / 1000 if deadline > 0 else None)
         try:
-            connection = self._transport_factory(self._url)
-            if inspect.isawaitable(connection):
-                connection = await connection
-            connection.bind(
-                TransportHandlers(
-                    on_message=self._on_frame,
-                    on_close=self._on_close,
-                    on_error=self._on_error,
+            async with cm:
+                if self._transport_factory is None:
+                    connection = await self._dial()
+                else:
+                    created = self._transport_factory(self._url)
+                    connection = (
+                        await created if inspect.isawaitable(created) else created
+                    )
+                connection.bind(
+                    TransportHandlers(
+                        on_message=self._on_frame,
+                        on_close=self._on_close,
+                        on_error=self._on_error,
+                    )
+                )
+                self._connection = connection
+                await self._send_frame({"type": "connection_init"})
+                self._connected = True
+            return
+        except builtins.TimeoutError as exc:
+            error: Exception = (
+                TimeoutError("connect", deadline)
+                if cm.expired()
+                else ConnectionError(
+                    f"WebSocket connection failed: {_safe_error_message(exc)}"
                 )
             )
-            self._connection = connection
-            await self._send_frame({"type": "connection_init"})
-            self._connected = True
-        except ConnectionError:
-            raise
+        except ConnectionError as exc:
+            error = ConnectionError(_safe_error_message(exc))
         except asyncio.CancelledError:
             raise
         except BaseException as exc:
-            raise ConnectionError(
+            error = ConnectionError(
                 f"WebSocket connection failed: {_safe_error_message(exc)}"
-            ) from None
+            )
+        finally:
+            if not self._connected:
+                self._closed = True
+                if connection is not None:
+                    with suppress(Exception):
+                        await _maybe_await(connection.close())
+                self._connection = None
+        raise error
 
-    async def _default_factory(self, url: str | None) -> ConnectionTransport:
-        if url is None:
+    async def _dial(self) -> ConnectionTransport:
+        if self._url is None:
             raise ConnectionError(
                 "A browser_ws_endpoint is required when no transport is provided"
             )
         try:
             socket = await connect(
-                url,
+                self._url,
                 subprotocols=[Subprotocol(SUBPROTOCOL)],
                 additional_headers={"User-Agent": f"browserless-bap/{__version__}"},
                 logger=_WEBSOCKETS_LOGGER,
@@ -217,10 +251,10 @@ class Transport:
         except asyncio.CancelledError:
             raise
         except BaseException as exc:
-            raise ConnectionError(
-                f"WebSocket connection failed: {_safe_error_message(exc)}"
-            ) from None
-        return _WebSocketConnection(socket)
+            message = f"WebSocket connection failed: {_safe_error_message(exc)}"
+        else:
+            return _WebSocketConnection(socket)
+        raise ConnectionError(message)
 
     def operation_timeout(self, timeout: float | None, cushion: float = 0) -> float:
         resolved = self._default_timeout if timeout is None else timeout
@@ -240,7 +274,7 @@ class Transport:
         variables: Mapping[str, Any] | None = None,
         timeout: float | None = None,
     ) -> T:
-        await self.connect()
+        await asyncio.shield(self.connect())
         self._ensure_connected()
         loop = asyncio.get_running_loop()
         future: asyncio.Future[T] = loop.create_future()
@@ -250,7 +284,10 @@ class Transport:
         if timeout_ms > 0:
             timer = loop.call_later(
                 timeout_ms / 1000,
-                lambda: self._spawn(self._timeout(operation_id, query, timeout_ms)),
+                self._expire,
+                future,
+                query,
+                timeout_ms,
             )
         try:
             payload: dict[str, Any] = {"query": query}
@@ -260,6 +297,9 @@ class Transport:
                 {"id": operation_id, "type": "subscribe", "payload": payload}
             )
             return await future
+        except TimeoutError:
+            await self._complete_safely(operation_id)
+            raise
         except asyncio.CancelledError:
             await self._complete_safely(operation_id)
             raise
@@ -274,7 +314,7 @@ class Transport:
         variables: Mapping[str, Any] | None,
         subscriber: Subscriber,
     ) -> Unsubscribe:
-        await self.connect()
+        await asyncio.shield(self.connect())
         self._ensure_connected()
         operation_id = self._start(_Operation(subscriber=subscriber))
         payload: dict[str, Any] = {"query": query}
@@ -291,10 +331,7 @@ class Transport:
         async def unsubscribe() -> None:
             if self._operations.pop(operation_id, None) is None:
                 return
-            try:
-                await self._send_frame({"id": operation_id, "type": "complete"})
-            finally:
-                self._stop(operation_id)
+            await self._send_complete(operation_id)
 
         return unsubscribe
 
@@ -363,9 +400,10 @@ class Transport:
         except asyncio.CancelledError:
             raise
         except BaseException as exc:
-            raise ConnectionError(
-                f"WebSocket send failed: {_safe_error_message(exc)}"
-            ) from None
+            message = f"WebSocket send failed: {_safe_error_message(exc)}"
+        else:
+            return
+        raise ConnectionError(message)
 
     def _on_frame(self, message: str) -> None:
         try:
@@ -400,8 +438,13 @@ class Transport:
             payload = frame.get("payload")
             payload = payload if isinstance(payload, dict) else {}
             errors = payload.get("errors")
-            if isinstance(errors, list):
-                self._operation_error(operation_id, BrowserQLError(errors))
+            if isinstance(errors, list) and errors:
+                if operation.subscriber is not None:
+                    self._stop(operation_id)
+                    self._invoke(operation.subscriber.error, BrowserQLError(errors))
+                    self._spawn(self._send_complete(operation_id))
+                else:
+                    self._operation_error(operation_id, BrowserQLError(errors))
                 return
             data = payload.get("data")
             if operation.future is not None and not operation.future.done():
@@ -480,13 +523,20 @@ class Transport:
                 exc_info=(type(error), error, error.__traceback__),
             )
 
-    async def _timeout(self, operation_id: str, query: str, timeout_ms: float) -> None:
-        operation = self._operations.get(operation_id)
-        if operation is None:
+    def _expire(
+        self,
+        future: asyncio.Future[Any],
+        query: str,
+        timeout_ms: float,
+    ) -> None:
+        if not future.done():
+            future.set_exception(TimeoutError(query[:50], timeout_ms))
+
+    async def _send_complete(self, operation_id: str) -> None:
+        if self._closed or self._connection is None:
             return
-        await self._complete_safely(operation_id)
-        if operation.future is not None and not operation.future.done():
-            operation.future.set_exception(TimeoutError(query[:50], timeout_ms))
+        with suppress(ConnectionError):
+            await self._send_frame({"id": operation_id, "type": "complete"})
 
     async def _complete_safely(self, operation_id: str) -> None:
         if operation_id not in self._operations or self._connection is None:
@@ -507,7 +557,10 @@ async def _await_callback(awaitable: Awaitable[object]) -> None:
 
 
 def _safe_error_message(error: object) -> str:
-    message = str(error) or type(error).__name__
+    return _redact(str(error) or type(error).__name__)
+
+
+def _redact(message: str) -> str:
     message = re.sub(
         r"([?&]token=)[^&\s]+",
         r"\1<redacted>",

@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import json
 import logging
@@ -8,7 +9,49 @@ from websockets.asyncio.server import ServerConnection, serve
 
 from browserless_bap import Browserless
 from browserless_bap.errors import BrowserQLError, ConnectionError
+from browserless_bap.errors import TimeoutError as BAPTimeoutError
 from browserless_bap.transport import Transport
+
+
+@pytest.mark.parametrize("stall", [False, True])
+async def test_no_traceback_frame_holds_token(stall: bool) -> None:
+    eof = asyncio.Event()
+
+    async def handler(
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        try:
+            if stall:
+                await reader.readuntil(b"\r\n\r\n")
+                assert await reader.read() == b""
+                eof.set()
+        finally:
+            writer.close()
+            await writer.wait_closed()
+
+    async with await asyncio.start_server(handler, "127.0.0.1", 0) as server:
+        port = server.sockets[0].getsockname()[1]
+        async with Browserless.connect(
+            browser_ws_endpoint=f"ws://127.0.0.1:{port}/bql",
+            token="SECRET-TRACEBACK",
+            timeout=100,
+        ) as browser:
+            async with asyncio.timeout(3):
+                with pytest.raises(
+                    BAPTimeoutError if stall else ConnectionError
+                ) as caught:
+                    await browser.new_page()
+            if stall:
+                assert isinstance(caught.value, BAPTimeoutError)
+                assert caught.value.operation == "connect"
+                assert caught.value.timeout_ms == 100
+                await asyncio.wait_for(eof.wait(), 2)
+            assert "SECRET-TRACEBACK" not in str(caught.value)
+            for frame, _ in traceback.walk_tb(caught.value.__traceback__):
+                assert not any(
+                    "SECRET-TRACEBACK" in repr(value)
+                    for value in frame.f_locals.values()
+                ), frame.f_code.co_name
 
 
 @pytest.mark.asyncio

@@ -220,7 +220,7 @@ async def test_empty_inline_tag_content_is_an_explicit_source() -> None:
 
 
 @pytest.mark.asyncio
-async def test_wait_for_function_rewrite_and_timeout_cushion() -> None:
+async def test_wait_for_function_rewrite_preserves_raw_timeout() -> None:
     page = RecordingPage()
     await page.wait_for_function(
         "async () => await fetch('/')",
@@ -232,7 +232,7 @@ async def test_wait_for_function_rewrite_and_timeout_cushion() -> None:
     assert args is not None
     assert args["fn"].startswith("async () => { await (")
     assert "completeOnPromiseResolution" not in args
-    assert timeout == 5_500
+    assert timeout == 500
     await page.close()
 
 

@@ -71,12 +71,13 @@ remain; cached results remain available. Public listeners use `on`/`off`.
 For reused IDs, the server emits the preceding handoff’s completion before the
 replacement’s completion on the same ordered subscription stream.
 
-Requires a server with the `liveComplete` subscription, `closeLiveURL` mutation,
-and `StringOrInstructions` support for live URL instructions (the client equivalent
-is bap-ts 2.2). This is a coordinated client/server cutover, not a rolling
-server-first upgrade: older clients declare `String`, which the new server
-rejects, and this client declares `StringOrInstructions`, which older servers
-reject, even when the instructions value is a string.
+Live URL handoffs need a Browserless server that supports
+`wait_for_live_complete()` (the `liveComplete` event), `close_live_url()` and
+instruction cards. When a live URL call passes `instructions`, this client sends
+them in the newer format, which older servers reject even for a plain string.
+Older clients send a format that newer servers reject. Upgrading is
+therefore a coordinated client/server cutover, not a rolling server-first
+upgrade.
 
 For self-hosted upgrades, pause new handoffs and drain active ones, upgrade the
 server and all clients together, then verify mint, completion, and close before

@@ -66,8 +66,27 @@ jobs:
           )"
           if test -z "$PREVIOUS_TAG"; then
             echo "No prior release tag; bootstrapping API compatibility baseline."
+            exit 0
+          fi
+          # Breaking changes are allowed only in a major release, or in a
+          # minor release while the version is 0.x. Release-please bumps the
+          # version that way for `feat!:` and `BREAKING CHANGE:` commits.
+          BREAKING_ALLOWED="$(
+            PREVIOUS_TAG="$PREVIOUS_TAG" python - <<'PY'
+          import os
+          import runpy
+
+          current = runpy.run_path("src/browserless_bap/_version.py")["__version__"]
+          cur = [int(part) for part in current.split(".")[:2]]
+          prev = [int(part) for part in os.environ["PREVIOUS_TAG"].lstrip("v").split(".")[:2]]
+          print("true" if cur[0] != prev[0] or (cur[0] == 0 and cur[1] != prev[1]) else "false")
+          PY
+          )"
+          if test "$BREAKING_ALLOWED" = "true"; then
+            echo "Breaking changes are allowed against $PREVIOUS_TAG; listing them for the record."
+            griffe check browserless_bap --search src --against "$PREVIOUS_TAG" || true
           else
-            griffe check src/browserless_bap --against "$PREVIOUS_TAG"
+            griffe check browserless_bap --search src --against "$PREVIOUS_TAG"
           fi
       - run: python -m build
       - name: Validate distributions

@@ -139,14 +139,21 @@ vendored schema without requiring any sibling checkout:
 python scripts/sync_schema.py --check
 ```
 
-By default, syncing reads the schema from a sibling checkout of the TypeScript
-SDK (`../bap-ts/src/mutations.graphql`). Any schema file can be selected with
-`--schema`, for example `src/mutations.graphql` from the `@browserless.io/bap-ts`
-npm package:
+Syncing downloads `src/mutations.graphql` from a named `@browserless.io/bap-ts`
+npm release (version 2.2.0 or later), verifies npm's integrity hash, and records
+the resolved version and integrity hash in `schema.lock`. No Node.js or private
+checkout is required:
 
 ```bash
-python scripts/sync_schema.py --from-bap-ts
-python scripts/sync_schema.py --schema /path/to/mutations.graphql
+python scripts/sync_schema.py --from-npm 2.2.0
+python scripts/sync_schema.py --from-npm latest
+```
+
+For an unreleased schema, pass a schema file with `--schema`; its provenance
+records only the file name:
+
+```bash
+python scripts/sync_schema.py --schema mutations.graphql
 ```
 
 Generated Python modules are committed to git. Update the schema or generator,

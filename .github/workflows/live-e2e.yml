@@ -1,0 +1,37 @@
+name: Live E2E
+
+# Runs the live suite against a real BrowserQL endpoint every night. The
+# BROWSERLESS_TOKEN secret lives on the live-e2e environment.
+
+on:
+  schedule:
+    - cron: "43 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    if: github.repository == 'browserless/bap-py'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: live-e2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - name: Run the live suite
+        env:
+          BROWSERLESS_TOKEN: ${{ secrets.BROWSERLESS_TOKEN }}
+          BROWSERLESS_URL: ${{ vars.BROWSERLESS_URL }}
+        run: |
+          if [ -z "$BROWSERLESS_TOKEN" ]; then
+            echo "::error::Set the BROWSERLESS_TOKEN secret on the live-e2e environment."
+            exit 1
+          fi
+          pytest -m e2e -rs

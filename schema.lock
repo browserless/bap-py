@@ -1,5 +1,8 @@
 source_repo = "browserless/bap-ts"
 source_path = "src/mutations.graphql"
 source_commit = "7feae20db98f226b2db7be28a2cd43f32e67dde7"
+npm_package = "@browserless.io/bap-ts"
+npm_version = "2.2.0"
+npm_integrity = "sha512-0UJD0uVTp05s34BHEXNMFtJNvZqPn1IpqmgWvj3dbQWYIEWFGhZXF/YcgsyioG39rJY+5LFAXcDneo8X56NBYg=="
 line_count = 5560
 sha256 = "56c404249f64c9e3f781e7b5035c0ff98f9437c42541660b4f2dc7f8f42bdbde"

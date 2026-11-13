@@ -10,6 +10,7 @@ import pytest
 import browserless_bap.sync_api.page as page_module
 from browserless_bap._unset import UNSET
 from browserless_bap.element_handle import ElementHandle as AsyncElementHandle
+from browserless_bap.errors import BAPValueError
 from browserless_bap.sync_api._bridge import LoopThread
 from browserless_bap.sync_api.browser import Browser
 from browserless_bap.sync_api.element_handle import ElementHandle
@@ -21,7 +22,7 @@ class AsyncPage:
         self.closed = False
         self.listeners: dict[str, list[Callable[[object], object]]] = {}
         self.thread_names: list[str] = []
-        self.query_options: dict[str, object] = {}
+        self.query_options: list[dict[str, object]] = []
 
     async def goto(self, url: str, **options: object) -> dict[str, object]:
         self.thread_names.append(threading.current_thread().name)
@@ -33,7 +34,7 @@ class AsyncPage:
     async def query_selector(
         self, selector: str, **options: object
     ) -> AsyncElementHandle:
-        self.query_options = options
+        self.query_options.append(options)
         return AsyncElementHandle(
             cast(Any, self),
             selector,
@@ -127,11 +128,17 @@ def test_page_calls_run_on_bridge_and_wrap_handles() -> None:
         assert isinstance(handle, ElementHandle)
         assert handle.inner_text == "child"
         assert handle.text_content() == "current child"
-        assert isinstance(handle.query_selector("span", timeout=5), ElementHandle)
-        assert impl.query_options == {"timeout": 5}
-        assert len(handle.query_selector_all("span", visible=True)) == 1
-        assert impl.query_options == {"visible": True}
+        assert isinstance(handle.query_selector("span"), ElementHandle)
+        assert len(handle.query_selector_all("span")) == 1
+        handle.query_selector("span", timeout=5, visible=False, html=True)
+        assert impl.query_options[-1] == {"timeout": 5, "visible": False, "html": True}
+        handle.query_selector_all("span", timeout=10, visible=True, html=True)
+        assert impl.query_options[-1] == {"timeout": 10, "visible": True, "html": True}
         assert len(page.query_selector_all(".item")) == 1
+        plain = ElementHandle(AsyncElementHandle(cast(Any, impl), "p", {}), bridge)
+        for attribute in ("inner_html", "outer_html"):
+            with pytest.raises(BAPValueError, match="html=True"):
+                getattr(plain, attribute)
     finally:
         bridge.close()
 

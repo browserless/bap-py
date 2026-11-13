@@ -2,10 +2,27 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import Literal
 
 from ..errors import SchemaMismatchError
+from .mutations import OPTIONAL_FIELDS, RESPONSE_FIELDS
+
+
+def selection_for(response_type: str, opt_in: Iterable[str] = ()) -> str:
+    base = RESPONSE_FIELDS.get(response_type)
+    if base is None:
+        raise SchemaMismatchError(f"Unknown response type: {response_type}")
+    selected: dict[str, None] = {}
+    for group in opt_in:
+        fields = OPTIONAL_FIELDS.get(response_type, {}).get(group)
+        if fields is None:
+            raise SchemaMismatchError(
+                f'Unknown optional field group "{group}" '
+                f"for response type {response_type}"
+            )
+        selected.update(dict.fromkeys(fields.split()))
+    return " ".join((base, *selected))
 
 
 def build_operation(
@@ -34,4 +51,4 @@ def build_operation(
     return query, provided
 
 
-__all__ = ["build_operation"]
+__all__ = ["build_operation", "selection_for"]

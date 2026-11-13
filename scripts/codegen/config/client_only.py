@@ -8,11 +8,18 @@ class ClientParam:
     name: str
     annotation: str
     transport_timeout: bool = False
+    opt_in: str | None = None
 
 
 CLIENT_ONLY_PARAMS = {
-    "GotoOptions": (ClientParam("remote_response_metadata", "bool"),),
-    "ResponseFilterOptions": (ClientParam("body_encoding", "bool"),),
+    "GotoOptions": (
+        ClientParam("remote_response_metadata", "bool", opt_in="remoteMetadata"),
+    ),
+    "ResponseFilterOptions": (
+        ClientParam("body", "bool", opt_in="body"),
+        ClientParam("body_encoding", "bool", opt_in="bodyEncoding"),
+    ),
+    "QuerySelectorOptions": (ClientParam("html", "bool", opt_in="html"),),
     "ScreenshotOptions": (ClientParam("path", "str"),),
     "PDFOptions": (ClientParam("path", "str"),),
     "AddScriptTagOptions": (ClientParam("path", "str"),),

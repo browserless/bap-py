@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Mapping
-from typing import Any, cast
 
 import browserless_bap.sync_api as sync_bap
 
@@ -10,9 +9,8 @@ from ._server import ServerThread
 
 
 def test_sync_event_callback_can_call_page_without_deadlocking() -> None:
-    browserless = cast(Any, sync_bap.Browserless)
     with ServerThread() as server:
-        with browserless.connect(
+        with sync_bap.Browserless.connect(
             browser_ws_endpoint=server.url,
             timeout=2_000,
         ) as browser:

@@ -11,6 +11,7 @@ ENUM_NAME_OVERRIDES = {
 }
 
 RESPONSE_TYPE_OVERRIDES = {"Headers": "RequestHeader"}
+RESPONSE_FIELD_TYPE_OVERRIDES = {("QuerySelectorResponse", "childElementCount"): "int"}
 RESPONSE_RENAME_EXCLUDE = {"WaitForFunction", "WaitForEvent"}
 
 SCALAR_MAP = {
@@ -34,13 +35,8 @@ EXCLUDED_MUTATIONS = {
 }
 
 SUBSCRIPTION_OMIT_FIELDS = {"response": {"body"}}
-UNSUPPORTED_FIELDS = {
-    "HTTPResponse": {
-        "fields": {"ip", "port"},
-        "variant": "HTTPResponseWithRemoteMetadata",
-    },
-    "ResponseResponse": {
-        "fields": {"base64Encoded"},
-        "variant": "ResponseResponseWithBodyEncoding",
-    },
+OPTIONAL_FIELDS: dict[str, dict[str, tuple[str, ...]]] = {
+    "HTTPResponse": {"remoteMetadata": ("ip", "port")},
+    "ResponseResponse": {"body": ("body",), "bodyEncoding": ("body", "base64Encoded")},
+    "QuerySelectorResponse": {"html": ("innerHTML", "outerHTML")},
 }

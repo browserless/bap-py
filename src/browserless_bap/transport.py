@@ -20,7 +20,7 @@ from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed, ConnectionClosedOK
 from websockets.typing import Subprotocol
 
-from .errors import BrowserQLError, ConnectionError, TimeoutError
+from .errors import BAPConnectionError, BAPTimeoutError, BrowserQLError
 
 try:
     from ._version import __version__
@@ -185,7 +185,7 @@ class Transport:
 
     async def _connect(self) -> None:
         if self._closed:
-            raise ConnectionError("Transport is closed")
+            raise BAPConnectionError("Transport is closed")
         deadline = self.operation_timeout(self._connect_timeout)
         connection: ConnectionTransport | None = None
         cm = asyncio.timeout(deadline / 1000 if deadline > 0 else None)
@@ -213,18 +213,18 @@ class Transport:
             return
         except builtins.TimeoutError as exc:
             error: Exception = (
-                TimeoutError("connect", deadline)
+                BAPTimeoutError("connect", deadline)
                 if cm.expired()
-                else ConnectionError(
+                else BAPConnectionError(
                     f"WebSocket connection failed: {_safe_error_message(exc)}"
                 )
             )
-        except ConnectionError as exc:
-            error = ConnectionError(_safe_error_message(exc))
+        except BAPConnectionError as exc:
+            error = BAPConnectionError(_safe_error_message(exc))
         except asyncio.CancelledError:
             raise
         except BaseException as exc:
-            error = ConnectionError(
+            error = BAPConnectionError(
                 f"WebSocket connection failed: {_safe_error_message(exc)}"
             )
         finally:
@@ -239,7 +239,7 @@ class Transport:
 
     async def _dial(self) -> ConnectionTransport:
         if self._url is None:
-            raise ConnectionError(
+            raise BAPConnectionError(
                 "A browser_ws_endpoint is required when no transport is provided"
             )
         try:
@@ -260,7 +260,7 @@ class Transport:
             message = f"WebSocket connection failed: {_safe_error_message(exc)}"
         else:
             return _WebSocketConnection(socket)
-        raise ConnectionError(message)
+        raise BAPConnectionError(message)
 
     def operation_timeout(self, timeout: float | None, cushion: float = 0) -> float:
         resolved = self._default_timeout if timeout is None else timeout
@@ -303,7 +303,7 @@ class Transport:
                 {"id": operation_id, "type": "subscribe", "payload": payload}
             )
             return await future
-        except TimeoutError:
+        except BAPTimeoutError:
             await self._complete_safely(operation_id)
             raise
         except asyncio.CancelledError:
@@ -361,7 +361,7 @@ class Transport:
             )
             with suppress(BaseException):
                 await _maybe_await(self._connection.close())
-        self._fail_all(ConnectionError("WebSocket connection closed"))
+        self._fail_all(BAPConnectionError("WebSocket connection closed"))
         self._connected = False
         for task in tuple(self._tasks):
             task.cancel()
@@ -391,17 +391,17 @@ class Transport:
 
     def _ensure_connected(self) -> None:
         if self._closed or not self._connected or self._connection is None:
-            raise ConnectionError("WebSocket is not connected")
+            raise BAPConnectionError("WebSocket is not connected")
 
     async def _send_frame(self, frame: Mapping[str, Any]) -> None:
         connection = self._connection
         if connection is None:
-            raise ConnectionError("WebSocket is not connected")
+            raise BAPConnectionError("WebSocket is not connected")
         message = json.dumps(frame, separators=(",", ":"))
         try:
             async with self._send_lock:
                 await _maybe_await(connection.send(message))
-        except ConnectionError:
+        except BAPConnectionError:
             raise
         except asyncio.CancelledError:
             raise
@@ -409,7 +409,7 @@ class Transport:
             message = f"WebSocket send failed: {_safe_error_message(exc)}"
         else:
             return
-        raise ConnectionError(message)
+        raise BAPConnectionError(message)
 
     def _on_frame(self, message: str) -> None:
         try:
@@ -483,13 +483,15 @@ class Transport:
         self._connected = False
         if not self._closing:
             self._closed = True
-            self._fail_all(ConnectionError("WebSocket connection closed unexpectedly"))
+            self._fail_all(
+                BAPConnectionError("WebSocket connection closed unexpectedly")
+            )
 
     def _on_error(self, error: object) -> None:
         self._connected = False
         self._closed = True
         self._fail_all(
-            ConnectionError(f"WebSocket error: {_safe_error_message(error)}")
+            BAPConnectionError(f"WebSocket error: {_safe_error_message(error)}")
         )
 
     def _fail_all(self, error: Exception) -> None:
@@ -536,12 +538,12 @@ class Transport:
         timeout_ms: float,
     ) -> None:
         if not future.done():
-            future.set_exception(TimeoutError(query[:50], timeout_ms))
+            future.set_exception(BAPTimeoutError(query[:50], timeout_ms))
 
     async def _send_complete(self, operation_id: str) -> None:
         if self._closed or self._connection is None:
             return
-        with suppress(ConnectionError):
+        with suppress(BAPConnectionError):
             await self._send_frame({"id": operation_id, "type": "complete"})
 
     async def _complete_safely(self, operation_id: str) -> None:

@@ -7,8 +7,12 @@ from pathlib import Path
 import pytest
 from graphql import build_schema, parse, specified_rules, validate
 
-from browserless_bap.graphql.builder import build_operation
-from browserless_bap.graphql.mutations import ARG_TYPES, RESPONSE_FIELDS
+from browserless_bap.graphql.builder import build_operation, selection_for
+from browserless_bap.graphql.mutations import (
+    ARG_TYPES,
+    OPTIONAL_FIELDS,
+    RESPONSE_FIELDS,
+)
 from browserless_bap.graphql.subscriptions import SUBSCRIPTIONS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -53,14 +57,12 @@ def test_every_default_and_opt_in_response_selection_is_valid() -> None:
         CODEGEN_SCHEMA.response_name(name): name
         for name in CODEGEN_SCHEMA.response_objects
     }
-    owner_by_response.update(
-        {
-            "HTTPResponseWithRemoteMetadata": "HTTPResponse",
-            "ResponseResponseWithBodyEncoding": "ResponseResponse",
-        }
-    )
     for response_name, fields in RESPONSE_FIELDS.items():
         owner = owner_by_response[response_name]
+        _assert_valid_fragment(f"fragment CodegenSelection on {owner} {{ {fields} }}")
+    for response_name, groups in OPTIONAL_FIELDS.items():
+        owner = owner_by_response[response_name]
+        fields = selection_for(response_name, groups)
         _assert_valid_fragment(f"fragment CodegenSelection on {owner} {{ {fields} }}")
 
 

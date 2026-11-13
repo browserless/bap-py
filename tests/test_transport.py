@@ -8,8 +8,7 @@ import pytest
 from websockets.asyncio.server import ServerConnection, serve
 
 from browserless_bap import Browserless, __version__
-from browserless_bap.errors import BrowserQLError, ConnectionError
-from browserless_bap.errors import TimeoutError as BAPTimeoutError
+from browserless_bap.errors import BAPConnectionError, BAPTimeoutError, BrowserQLError
 from browserless_bap.transport import Transport
 
 
@@ -38,7 +37,7 @@ async def test_no_traceback_frame_holds_token(stall: bool) -> None:
         ) as browser:
             async with asyncio.timeout(3):
                 with pytest.raises(
-                    BAPTimeoutError if stall else ConnectionError
+                    BAPTimeoutError if stall else BAPConnectionError
                 ) as caught:
                     await browser.new_page()
             if stall:
@@ -59,7 +58,7 @@ async def test_connection_traceback_redacts_token() -> None:
     async with Browserless.connect(
         browser_ws_endpoint="https://example.invalid/bql", token="SECRET456"
     ) as browser:
-        with pytest.raises(ConnectionError) as caught:
+        with pytest.raises(BAPConnectionError) as caught:
             await browser.new_page()
 
     assert "SECRET456" not in "".join(traceback.format_exception(caught.value))

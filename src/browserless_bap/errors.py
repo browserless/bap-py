@@ -8,6 +8,16 @@ from typing import ClassVar, Literal
 
 ErrorCode = Literal["BQL", "CONNECTION", "TIMEOUT", "CLIENT"]
 
+__all__ = [
+    "BAPConnectionError",
+    "BAPError",
+    "BAPTimeoutError",
+    "BAPValueError",
+    "BrowserQLError",
+    "ErrorCode",
+    "SchemaMismatchError",
+]
+
 
 class BAPError(Exception):
     """Base class for errors produced by the SDK."""
@@ -32,13 +42,13 @@ class BrowserQLError(BAPError):
         super().__init__(message or "Unknown BrowserQL error")
 
 
-class ConnectionError(BAPError, builtins.ConnectionError):
+class BAPConnectionError(BAPError, builtins.ConnectionError):
     """The BAP transport could not connect or disconnected."""
 
     code = "CONNECTION"
 
 
-class TimeoutError(BAPError, builtins.TimeoutError):
+class BAPTimeoutError(BAPError, builtins.TimeoutError):
     """A BAP operation exceeded its transport deadline."""
 
     code = "TIMEOUT"
@@ -57,12 +67,7 @@ class SchemaMismatchError(BAPError):
     code = "CLIENT"
 
 
-class ValueError(BAPError, builtins.ValueError):
+class BAPValueError(BAPError, builtins.ValueError):
     """A public SDK argument failed client-side validation."""
 
     code = "CLIENT"
-
-
-BAPConnectionError = ConnectionError
-BAPTimeoutError = TimeoutError
-BAPValueError = ValueError

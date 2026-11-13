@@ -18,10 +18,9 @@ from ._io import read_text_file
 from ._page_generated import PageGenerated
 from ._unset import UNSET, UnsetType
 from .emitter import EventEmitter, Listener
-from .errors import ConnectionError, SchemaMismatchError, ValueError
-from .errors import TimeoutError as BAPTimeoutError
-from .graphql.builder import build_operation
-from .graphql.mutations import ARG_TYPES, RESPONSE_FIELDS
+from .errors import BAPConnectionError, BAPTimeoutError, BAPValueError
+from .graphql.builder import build_operation, selection_for
+from .graphql.mutations import ARG_TYPES
 from .graphql.subscriptions import SUBSCRIPTIONS
 from .transport import (
     OPERATION_TIMEOUT_CUSHION_MS,
@@ -138,13 +137,14 @@ class Page(PageGenerated, PageEventsMixin):
         response_type: str,
         *,
         timeout: float | UnsetType | None = None,
+        opt_in: Sequence[str] = (),
     ) -> Any:
         if mutation_name != "liveURL":
             return await self._execute_operation(
-                mutation_name, args, response_type, timeout=timeout
+                mutation_name, args, response_type, timeout=timeout, opt_in=opt_in
             )
         if self._minting:
-            raise ValueError(
+            raise BAPValueError(
                 "Await the previous live_url() call before minting another link"
             )
         self._minting = True
@@ -160,13 +160,13 @@ class Page(PageGenerated, PageEventsMixin):
             self._on_listener_count_change("liveComplete", 1)
             await self._wait_subscription_started("liveComplete")
             if "liveComplete" not in self._unsubscribes:
-                raise ConnectionError("Live completion subscription unavailable")
+                raise BAPConnectionError("Live completion subscription unavailable")
             result = await self._execute_operation(
-                mutation_name, args, response_type, timeout=timeout
+                mutation_name, args, response_type, timeout=timeout, opt_in=opt_in
             )
             state.id = result.get("liveURLId") if isinstance(result, Mapping) else None
             if not state.id:
-                raise ValueError("live_url returned no liveURLId")
+                raise BAPValueError("live_url returned no liveURLId")
             if state.id in state.early and not state.future.done():
                 state.future.set_result(state.early[state.id])
             return result
@@ -175,7 +175,7 @@ class Page(PageGenerated, PageEventsMixin):
                 state.future.set_exception(
                     error
                     if isinstance(error, Exception)
-                    else ConnectionError("live_url() was cancelled or interrupted")
+                    else BAPConnectionError("live_url() was cancelled or interrupted")
                 )
             raise
         finally:
@@ -192,10 +192,9 @@ class Page(PageGenerated, PageEventsMixin):
         response_type: str,
         *,
         timeout: float | UnsetType | None = None,
+        opt_in: Sequence[str] = (),
     ) -> Any:
-        fields = RESPONSE_FIELDS.get(response_type)
-        if fields is None:
-            raise SchemaMismatchError(f"Unknown response type: {response_type}")
+        fields = selection_for(response_type, opt_in)
         operation = build_operation(
             mutation_name,
             args,
@@ -227,10 +226,10 @@ class Page(PageGenerated, PageEventsMixin):
         Completion or failure is retained until the next live_url() call.
         """
         if self.closed:
-            raise ConnectionError("Page is closed")
+            raise BAPConnectionError("Page is closed")
         deadline = 0 if timeout is None else timeout
         if not math.isfinite(deadline) or deadline < 0:
-            raise ValueError("timeout must be a finite non-negative number")
+            raise BAPValueError("timeout must be a finite non-negative number")
         if self._live is None or (
             self._live.rejected and not self._live.id and not self._minting
         ):
@@ -308,6 +307,7 @@ class Page(PageGenerated, PageEventsMixin):
         referrer_policy: str | UnsetType = UNSET,
         remote_response_metadata: bool | UnsetType = UNSET,
     ) -> HTTPResponse | None:
+        """Navigate to a URL with optional waitUntil and timeout parameters."""
         args = _drop_unset(
             {
                 "url": url,
@@ -318,14 +318,15 @@ class Page(PageGenerated, PageEventsMixin):
                 "referrerPolicy": referrer_policy,
             }
         )
-        response_type = (
-            "HTTPResponseWithRemoteMetadata"
-            if remote_response_metadata is True
-            else "HTTPResponse"
-        )
         return cast(
             HTTPResponse | None,
-            await self._execute("goto", args, response_type, timeout=timeout),
+            await self._execute(
+                "goto",
+                args,
+                "HTTPResponse",
+                timeout=timeout,
+                opt_in=("remoteMetadata",) if remote_response_metadata is True else (),
+            ),
         )
 
     async def response(
@@ -338,8 +339,13 @@ class Page(PageGenerated, PageEventsMixin):
         type: list[ResourceType] | UnsetType = UNSET,
         url: list[str] | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
+        body: bool | UnsetType = UNSET,
         body_encoding: bool | UnsetType = UNSET,
     ) -> list[ResponseResponse]:
+        """List responses; fetch bodies only with body=True.
+
+        body_encoding=True implies body=True and adds the base64Encoded flag.
+        """
         args = _drop_unset(
             {
                 "status": status,
@@ -351,12 +357,16 @@ class Page(PageGenerated, PageEventsMixin):
                 "wait": wait,
             }
         )
-        response_type = (
-            "ResponseResponseWithBodyEncoding"
+        opt_in = (
+            ("bodyEncoding",)
             if body_encoding is True
-            else "ResponseResponse"
+            else ("body",)
+            if body is True
+            else ()
         )
-        result = await self._execute("response", args, response_type, timeout=timeout)
+        result = await self._execute(
+            "response", args, "ResponseResponse", timeout=timeout, opt_in=opt_in
+        )
         return cast(list[ResponseResponse], list(result or ()))
 
     async def select_option(
@@ -582,7 +592,7 @@ class Page(PageGenerated, PageEventsMixin):
         if self._closed_flag:
             return
         self._closed_flag = True
-        self._fail_live(ConnectionError("Page is closed"))
+        self._fail_live(BAPConnectionError("Page is closed"))
         for ready in self._subscription_ready.values():
             ready.set()
         self._detach_transport()
@@ -682,7 +692,7 @@ class Page(PageGenerated, PageEventsMixin):
         def on_complete() -> None:
             clear_if_own()
             if event == "liveComplete":
-                self._fail_live(ConnectionError("Live completion stream ended"))
+                self._fail_live(BAPConnectionError("Live completion stream ended"))
 
         try:
             spec = SUBSCRIPTIONS[event]
@@ -772,6 +782,6 @@ def _require_one_source(
 ) -> None:
     values = (url, path, content)
     if sum(value is not UNSET for value in values) != 1:
-        raise ValueError(
+        raise BAPValueError(
             "Exactly one of `url`, `path`, or `content` must be specified."
         )

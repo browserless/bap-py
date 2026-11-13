@@ -33,11 +33,12 @@ from .config.schema_map import (
     ENUM_NAME_OVERRIDES,
     EXCLUDED_MUTATIONS,
     EXCLUDED_TYPES,
+    OPTIONAL_FIELDS,
+    RESPONSE_FIELD_TYPE_OVERRIDES,
     RESPONSE_RENAME_EXCLUDE,
     RESPONSE_TYPE_OVERRIDES,
     SCALAR_MAP,
     SUBSCRIPTION_OMIT_FIELDS,
-    UNSUPPORTED_FIELDS,
 )
 
 
@@ -190,15 +191,14 @@ class Schema:
         graphql_type: str,
         *,
         omit: Iterable[str] = (),
-        keep_unsupported: bool = False,
         _seen: frozenset[str] = frozenset(),
     ) -> str:
         node = self.objects.get(graphql_type)
         if node is None:
             return ""
         excluded = set(omit)
-        if not keep_unsupported:
-            excluded.update(UNSUPPORTED_FIELDS.get(graphql_type, {}).get("fields", ()))
+        for group in OPTIONAL_FIELDS.get(graphql_type, {}).values():
+            excluded.update(group)
         parts: list[str] = []
         for field in node.fields or ():
             name = field.name.value
@@ -263,9 +263,36 @@ class Schema:
                 errors.append(
                     f"SUBSCRIPTION_OMIT_FIELDS contains unknown event {event!r}"
                 )
-        for type_name in UNSUPPORTED_FIELDS:
-            if type_name not in self.objects:
-                errors.append(f"UNSUPPORTED_FIELDS contains unknown type {type_name!r}")
+        for type_name, groups in OPTIONAL_FIELDS.items():
+            node = self.objects.get(type_name)
+            if node is None:
+                errors.append(f"OPTIONAL_FIELDS contains unknown type {type_name!r}")
+                continue
+            actual_fields = {field.name.value for field in node.fields or ()}
+            for group in groups.values():
+                for name in group:
+                    if name not in actual_fields:
+                        errors.append(
+                            f"OPTIONAL_FIELDS[{type_name!r}] contains unknown "
+                            f"field {name!r}"
+                        )
+        for field in fields.values():
+            groups = OPTIONAL_FIELDS.get(named_type(field.type), {})
+            for client in CLIENT_ONLY_PARAMS.get(options_name(field.name.value), ()):
+                if client.opt_in is not None and client.opt_in not in groups:
+                    errors.append(
+                        f"CLIENT_ONLY_PARAMS[{options_name(field.name.value)!r}] "
+                        f"contains unknown optional field group {client.opt_in!r}"
+                    )
+        for type_name, field_name in RESPONSE_FIELD_TYPE_OVERRIDES:
+            node = self.objects.get(type_name)
+            if node is None or field_name not in {
+                field.name.value for field in node.fields or ()
+            }:
+                errors.append(
+                    "RESPONSE_FIELD_TYPE_OVERRIDES contains unknown field "
+                    f"{type_name}.{field_name}"
+                )
         builtin_scalars = {"String", "Int", "Float", "Boolean", "ID"}
         for scalar in self.scalars - builtin_scalars:
             if scalar not in SCALAR_MAP:

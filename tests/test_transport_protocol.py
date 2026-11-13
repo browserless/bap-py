@@ -9,8 +9,7 @@ from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosedError
 from websockets.frames import Close
 
-from browserless_bap.errors import BrowserQLError, ConnectionError
-from browserless_bap.errors import TimeoutError as BAPTimeoutError
+from browserless_bap.errors import BAPConnectionError, BAPTimeoutError, BrowserQLError
 from browserless_bap.transport import (
     Subscriber,
     Transport,
@@ -135,7 +134,7 @@ async def test_connect_timeout_is_typed_and_terminal(
         assert caught.value.timeout_ms == (40 if connect_timeout is None else 20)
         assert caught.value.__context__ is None
         assert transport.closed
-        with pytest.raises((ConnectionError, BAPTimeoutError)):
+        with pytest.raises((BAPConnectionError, BAPTimeoutError)):
             await transport.send("query { x }")
     await transport.close()
 
@@ -166,7 +165,7 @@ async def test_failed_connection_init_closes_connection() -> None:
 
     connection = BrokenConnection()
     transport = Transport("ws://unused", transport_factory=lambda _url: connection)
-    with pytest.raises(ConnectionError) as caught:
+    with pytest.raises(BAPConnectionError) as caught:
         await transport.connect()
     assert connection.closed
     assert caught.value.__cause__ is None
@@ -441,7 +440,7 @@ async def test_connection_errors_have_no_context(site: str) -> None:
         "https://example.invalid/bql?token=SECRET",
         transport_factory=None if site == "dial" else cast(TransportFactory, factory),
     )
-    with pytest.raises(ConnectionError) as caught:
+    with pytest.raises(BAPConnectionError) as caught:
         await transport.send("query { x }")
     assert caught.value.__cause__ is None
     assert caught.value.__context__ is None
@@ -640,7 +639,7 @@ async def test_send_waits_for_complete_and_drop_after_next_rejects() -> None:
 
     connection.drop()
 
-    with pytest.raises(ConnectionError, match="closed unexpectedly"):
+    with pytest.raises(BAPConnectionError, match="closed unexpectedly"):
         await task
 
 
@@ -711,7 +710,7 @@ async def test_drop_marks_closed_and_fails_subscriber() -> None:
 
     assert transport.closed
     assert len(errors) == 1
-    assert isinstance(errors[0], ConnectionError)
+    assert isinstance(errors[0], BAPConnectionError)
     await transport.close()
 
 
@@ -770,7 +769,7 @@ async def test_connection_error_fails_operations_and_redacts_token(
         )
     )
 
-    with pytest.raises(ConnectionError) as raised:
+    with pytest.raises(BAPConnectionError) as raised:
         await task
     assert transport.closed
     assert "super-secret" not in str(raised.value)
@@ -821,7 +820,7 @@ async def test_abnormal_websocket_close_preserves_reason_and_redacts_token() -> 
 
     socket.release.set()
 
-    with pytest.raises(ConnectionError) as raised:
+    with pytest.raises(BAPConnectionError) as raised:
         await task
     message = str(raised.value)
     assert transport.closed

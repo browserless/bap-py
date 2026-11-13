@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from graphql.language import FieldDefinitionNode
 
 from .config.client_only import CLIENT_ONLY_PARAMS
+from .config.docs import METHOD_DOCSTRINGS, lead_prose
 from .config.methods import (
     METHOD_SPECS,
     NULLABLE_RETURNS,
@@ -27,6 +28,7 @@ class Param:
     positional: bool
     required: bool
     transport_timeout: bool = False
+    opt_in: str | None = None
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,7 @@ class MethodModel:
     unwrap_field: str | None = None
     unwrap_default: object = None
     wrap: str | None = None
+    doc: str | None = None
 
     @property
     def transport_timeout_param(self) -> str | None:
@@ -107,6 +110,7 @@ def _params(
                     client.transport_timeout
                     if p.py_name == client.name
                     else p.transport_timeout,
+                    client.opt_in if p.py_name == client.name else p.opt_in,
                 )
                 for p in params
             ]
@@ -119,6 +123,7 @@ def _params(
                     positional=False,
                     required=False,
                     transport_timeout=client.transport_timeout,
+                    opt_in=client.opt_in,
                 )
             )
     positional_order = {name: index for index, name in enumerate(spec.positional)}
@@ -184,6 +189,10 @@ def build_models(schema: Schema) -> list[MethodModel]:
                     unwrap_field=unwrap_field,
                     unwrap_default=unwrap_default,
                     wrap=spec.wrap,
+                    doc=METHOD_DOCSTRINGS.get(method_name(spec.method))
+                    or lead_prose(
+                        field.description.value if field.description else None
+                    ),
                 )
             )
     return models

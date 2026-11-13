@@ -154,6 +154,7 @@ class ProxyOptions(TypedDict, total=False):
 class QuerySelectorOptions(TypedDict, total=False):
     timeout: NotRequired[float]
     visible: NotRequired[bool]
+    html: NotRequired[bool]
 
 
 class ReconnectOptions(TypedDict, total=False):
@@ -186,6 +187,7 @@ class ResponseFilterOptions(TypedDict, total=False):
     type: NotRequired[list[ResourceType]]
     url: NotRequired[list[str]]
     wait: NotRequired[bool]
+    body: NotRequired[bool]
     body_encoding: NotRequired[bool]
 
 

@@ -80,6 +80,12 @@ the schema.
 Schema and codegen changes must include `schema.lock` and all regenerated
 files. Generated files and AUTOGEN regions must not be edited manually.
 
+Code generation formats the generated Page modules with Ruff from the active
+Python environment, so install the development dependencies before running it.
+Ruff has a minimum version rather than an exact pin; use the same version when
+comparing generated output across environments, and run the formatting and
+codegen drift checks above before submitting changes.
+
 ## API reference
 
 The generated Python API reference is published at

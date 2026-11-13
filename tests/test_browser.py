@@ -5,7 +5,7 @@ from typing import cast
 import pytest
 
 from browserless_bap.browserless import Browserless
-from browserless_bap.errors import ConnectionError, ValueError
+from browserless_bap.errors import BAPConnectionError, BAPValueError
 from browserless_bap.page import Page
 from browserless_bap.transport import TransportFactory, TransportHandlers
 
@@ -27,7 +27,7 @@ class FakeConnection:
 
 
 def test_browser_requires_endpoint_or_transport() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(BAPValueError):
         Browserless.connect()
 
 
@@ -76,7 +76,7 @@ async def test_new_page_closes_transport_if_browser_closes_during_connect() -> N
     await browser.close()
     release.set()
 
-    with pytest.raises(ValueError, match="Browser is closed"):
+    with pytest.raises(BAPValueError, match="Browser is closed"):
         await task
     assert connection.closed
     assert browser.get_pages() == []
@@ -137,7 +137,7 @@ async def test_new_page_closes_failed_connection(failure: str) -> None:
         connect_timeout=20 if failure == "timeout" else 0,
     )
     with pytest.raises(
-        TimeoutError if failure in {"cancel", "timeout"} else ConnectionError
+        TimeoutError if failure in {"cancel", "timeout"} else BAPConnectionError
     ):
         await asyncio.wait_for(browser.new_page(), 0.1)
     assert connection.closed

@@ -7,6 +7,7 @@ from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Unpack
 from urllib.parse import quote
 
+from .errors import BAPValueError
 from .types.options import ClickOptions, QuerySelectorOptions, TypeOptions
 from .types.responses import ClickResponse, HoverResponse, SelectResponse, TypeResponse
 
@@ -46,7 +47,16 @@ class ElementHandle:
 
     @property
     def inner_html(self) -> str | None:
-        return self._properties.get("innerHTML")
+        """Element HTML. Requires html=True on the query that produced this handle."""
+        return self._optional_html("innerHTML", "inner_html")
+
+    def _optional_html(self, key: str, attribute: str) -> str | None:
+        if key not in self._properties:
+            raise BAPValueError(
+                f"{attribute} was not requested; pass html=True to the query "
+                "that produced this handle"
+            )
+        return self._properties.get(key)
 
     @property
     def inner_text(self) -> str | None:
@@ -66,7 +76,8 @@ class ElementHandle:
 
     @property
     def outer_html(self) -> str | None:
-        return self._properties.get("outerHTML")
+        """Element markup. Requires html=True on the query that produced this handle."""
+        return self._optional_html("outerHTML", "outer_html")
 
     @property
     def child_element_count(self) -> int | None:

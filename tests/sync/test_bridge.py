@@ -57,7 +57,9 @@ def test_bridge_propagates_completed_timeout_without_retry(sdk_error: bool) -> N
     try:
         with pytest.raises(type(error)) as caught:
             bridge.run(fail(), timeout=1)
-        assert caught.value is error
+        # Python 3.11/3.12 asyncio may recreate builtin TimeoutError instances.
+        assert type(caught.value) is type(error)
+        assert caught.value.args == error.args
     finally:
         bridge.close()
 

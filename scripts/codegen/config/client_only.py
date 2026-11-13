@@ -40,6 +40,7 @@ CLIENT_ONLY_TYPES = {
         "browser_ws_endpoint": "str",
         "token": "str",
         "timeout": "float",
+        "connect_timeout": "float",
         "transport": "object",
     },
 }

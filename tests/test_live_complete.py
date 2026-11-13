@@ -21,8 +21,9 @@ class LiveTransport:
     def on_message(self, _listener: Any) -> Callable[[], None]:
         return lambda: None
 
-    def operation_timeout(self, timeout: float | None) -> float:
-        return 1000 if timeout is None else timeout
+    def operation_timeout(self, timeout: float | None, cushion: float = 0) -> float:
+        resolved = 1000 if timeout is None else timeout
+        return resolved + cushion if resolved > 0 else resolved
 
     async def subscribe(
         self, _query: str, _variables: Any, subscriber: Subscriber
@@ -409,7 +410,7 @@ async def test_default_wait_has_no_operation_deadline(
 ) -> None:
     transport = LiveTransport()
     page = Page(cast(Transport, transport))
-    monkeypatch.setattr(transport, "operation_timeout", lambda _timeout: 1)
+    monkeypatch.setattr(transport, "operation_timeout", lambda _timeout, _cushion=0: 1)
     await page.live_url()
     waiting = asyncio.create_task(page.wait_for_live_complete())
     await asyncio.sleep(0.01)

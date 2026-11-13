@@ -78,7 +78,14 @@ jobs:
           /tmp/bap-wheel-smoke/bin/python -m pip install dist/*.whl
           /tmp/bap-wheel-smoke/bin/python -c \
             "import browserless_bap, browserless_bap.sync_api; assert not hasattr(browserless_bap, 'schema_source')"
-          ! python -m zipfile -l dist/*.whl | grep -q 'mutations.graphql'
+          if python -m zipfile -l dist/*.whl | grep -q 'mutations.graphql'; then
+            echo "::error::Wheel must not contain mutations.graphql."
+            exit 1
+          fi
+          if ! tar tzf dist/*.tar.gz | grep -q 'src/browserless_bap/mutations.graphql'; then
+            echo "::error::Source distribution must contain src/browserless_bap/mutations.graphql."
+            exit 1
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: distributions

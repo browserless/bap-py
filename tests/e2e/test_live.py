@@ -157,6 +157,28 @@ async def test_element_handle_scoping_and_selector_encoding(
 
 
 @pytest.mark.e2e
+async def test_missing_selector_preserves_server_timeout_error(
+    live_config: LiveConfig,
+    capsys: CaptureFixture[str],
+) -> None:
+    async with bap.Browserless.connect(
+        browser_ws_endpoint=live_config.url,
+        token=live_config.token,
+        timeout=live_config.timeout_ms,
+    ) as browser:
+        async with browser.page() as page:
+            await page.goto(EXAMPLE_URL, timeout=live_config.timeout_ms)
+            with pytest.raises(bap.BrowserQLError, match="1500ms") as error:
+                await page.wait_for_selector("#bap-py-missing-selector", timeout=1500)
+
+    captured = capsys.readouterr()
+    assert_secret_absent(
+        live_config.token,
+        [error.value, repr(error.value), captured.out, captured.err],
+    )
+
+
+@pytest.mark.e2e
 @pytest.mark.parametrize("token", [None, INVALID_TOKEN], ids=["missing", "invalid"])
 def test_missing_and_invalid_auth_are_typed_and_redacted(
     live_config: LiveConfig,

@@ -8,6 +8,35 @@
 - Browserless documentation: https://docs.browserless.io
 - GraphQL schema: `src/browserless_bap/mutations.graphql`
 
+## Logging
+
+Use the Python logger `browserless_bap` for SDK diagnostics and its child
+`browserless_bap.websockets` for WebSocket frame logs. Setting the parent to
+`DEBUG` enables child frame logs too.
+
+```python
+import logging
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("browserless_bap").setLevel(logging.DEBUG)
+```
+
+The `browserless_bap.websockets` logger redacts tokens and `Authorization` header
+values. Frame logs can still contain page content and other application data;
+review them before sharing.
+
+## Timeouts
+
+All timeout values are milliseconds; the default per-step `timeout` is `30000`.
+Mutations with server-side timeouts get `5000` ms of client headroom once.
+`connect_timeout` defaults to `timeout`, bounds the entire WebSocket dial
+(including setup and handshake), and is disabled by values of `0` or less.
+Connection timeouts raise the SDK's `browserless_bap.TimeoutError` with
+`operation == "connect"`.
+
+A connect deadline expiring is terminal for that page's connection; create a
+new page to retry. These rules apply to both async and sync APIs. Live URL
+completion waits have their own timeout behavior, described below.
+
 ## API methods
 
 <!-- AUTOGEN:method-list START -->

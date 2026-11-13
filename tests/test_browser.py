@@ -5,7 +5,7 @@ from typing import cast
 import pytest
 
 from browserless_bap.browserless import Browserless
-from browserless_bap.errors import ValueError
+from browserless_bap.errors import ConnectionError, ValueError
 from browserless_bap.page import Page
 from browserless_bap.transport import TransportFactory, TransportHandlers
 
@@ -115,4 +115,31 @@ async def test_new_page_prunes_closed_pages() -> None:
     second = await browser.new_page()
 
     assert browser._pages == [second]
+    await browser.close()
+
+
+@pytest.mark.parametrize("failure", ["cancel", "send", "timeout", "bind"])
+async def test_new_page_closes_failed_connection(failure: str) -> None:
+    class BrokenConnection(FakeConnection):
+        def bind(self, handlers: TransportHandlers) -> None:
+            super().bind(handlers)
+            if failure == "bind":
+                raise RuntimeError("cannot bind")
+
+        async def send(self, message: str) -> None:
+            if failure == "send":
+                raise OSError("socket gone")
+            await asyncio.Event().wait()
+
+    connection = BrokenConnection()
+    browser = Browserless.connect(
+        transport=lambda _url: connection,
+        connect_timeout=20 if failure == "timeout" else 0,
+    )
+    with pytest.raises(
+        TimeoutError if failure in {"cancel", "timeout"} else ConnectionError
+    ):
+        await asyncio.wait_for(browser.new_page(), 0.1)
+    assert connection.closed
+    assert browser.get_pages() == []
     await browser.close()

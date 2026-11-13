@@ -23,7 +23,12 @@ from .errors import TimeoutError as BAPTimeoutError
 from .graphql.builder import build_operation
 from .graphql.mutations import ARG_TYPES, RESPONSE_FIELDS
 from .graphql.subscriptions import SUBSCRIPTIONS
-from .transport import Subscriber, Transport, Unsubscribe
+from .transport import (
+    OPERATION_TIMEOUT_CUSHION_MS,
+    Subscriber,
+    Transport,
+    Unsubscribe,
+)
 from .types.enums import (
     Method,
     OperatorType,
@@ -198,10 +203,15 @@ class Page(PageGenerated, PageEventsMixin):
             ARG_TYPES.get(mutation_name),
         )
         query, variables = operation
+        operation_timeout = _timeout_value(timeout)
+        if "timeout" in ARG_TYPES.get(mutation_name, {}):
+            operation_timeout = self._transport.operation_timeout(
+                operation_timeout, OPERATION_TIMEOUT_CUSHION_MS
+            )
         result: Any = await self._transport.send(
             query,
             variables,
-            _timeout_value(timeout),
+            operation_timeout,
         )
         if not isinstance(result, Mapping):
             return None
@@ -426,9 +436,7 @@ class Page(PageGenerated, PageEventsMixin):
                 "waitForFunction",
                 args,
                 "WaitForFunction",
-                timeout=self._transport.operation_timeout(
-                    _timeout_value(timeout), 5_000
-                ),
+                timeout=timeout,
             ),
         )
 
@@ -446,9 +454,7 @@ class Page(PageGenerated, PageEventsMixin):
                 "waitForEvent",
                 _drop_unset({"event": event, "timeout": timeout}),
                 "WaitForEvent",
-                timeout=self._transport.operation_timeout(
-                    _timeout_value(timeout), 5_000
-                ),
+                timeout=timeout,
             ),
         )
 
@@ -560,7 +566,7 @@ class Page(PageGenerated, PageEventsMixin):
             "waitForTimeout",
             {"time": ms},
             "WaitForTimeoutResponse",
-            timeout=ms + 5_000,
+            timeout=ms + OPERATION_TIMEOUT_CUSHION_MS,
         )
 
     async def send(

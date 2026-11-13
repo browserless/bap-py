@@ -254,6 +254,8 @@ class LoopThread:
                 try:
                     return future.result(timeout=wait_for)
                 except cf.TimeoutError:
+                    if future.done():
+                        return future.result()
                     failure = self._loop_failure()
                     if failure is not None:
                         future.cancel()

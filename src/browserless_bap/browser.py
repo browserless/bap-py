@@ -25,6 +25,7 @@ class Browser:
         token: str | None = None,
         timeout: float = 30_000,
         transport: TransportFactory | None = None,
+        connect_timeout: float | None = None,
     ) -> None:
         if browser_ws_endpoint is None and transport is None:
             raise ValueError(
@@ -33,6 +34,7 @@ class Browser:
         self._base_url = browser_ws_endpoint
         self._token = token
         self._timeout = timeout
+        self._connect_timeout = connect_timeout
         self._transport_factory = transport
         self._pages: list[Page] = []
         self._closed = False
@@ -43,9 +45,17 @@ class Browser:
         if self._closed:
             raise ValueError("Browser is closed")
         self._pages = [page for page in self._pages if not page.closed]
-        url = _with_token(self._base_url, self._token)
-        transport = Transport(url, self._timeout, self._transport_factory)
-        await transport.connect()
+        transport = Transport(
+            _with_token(self._base_url, self._token),
+            self._timeout,
+            self._transport_factory,
+            connect_timeout=self._connect_timeout,
+        )
+        try:
+            await transport.connect()
+        except BaseException:
+            await transport.close()
+            raise
         if self._closed:
             await transport.close()
             raise ValueError("Browser is closed")

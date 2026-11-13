@@ -19,12 +19,18 @@ class Browserless:
         token: str | None = None,
         timeout: float = 30_000,
         transport: TransportFactory | None = None,
+        connect_timeout: float | None = None,
     ) -> Browser:
-        """Create a browser configured for a BAP-compatible WebSocket endpoint."""
+        """Create a browser configured for a BAP-compatible WebSocket endpoint.
+
+        ``connect_timeout`` bounds opening the connection in ms; defaults to
+        ``timeout``; 0 disables it.
+        """
 
         return Browser(
             browser_ws_endpoint=browser_ws_endpoint,
             token=token,
             timeout=timeout,
             transport=transport,
+            connect_timeout=connect_timeout,
         )

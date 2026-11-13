@@ -48,3 +48,14 @@ def test_custom_bap_error_has_safe_default_code() -> None:
         pass
 
     assert CustomError("custom").code == "CLIENT"
+
+
+def test_browserql_error_normalises_entries() -> None:
+    error = BrowserQLError(["boom", 42, None, {"message": "ok"}])
+    assert error.errors == [
+        {"message": "boom"},
+        {"message": "42"},
+        {"message": "None"},
+        {"message": "ok"},
+    ]
+    assert str(error) == "boom; 42; None; ok"

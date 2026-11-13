@@ -1,5 +1,7 @@
 import asyncio
+import gc
 import json
+import logging
 from typing import cast
 
 import pytest
@@ -15,6 +17,7 @@ from browserless_bap.transport import (
     TransportFactory,
     TransportHandlers,
     _Operation,
+    _RedactSecrets,
     _safe_error_message,
     _WebSocketConnection,
 )
@@ -109,6 +112,364 @@ async def connected_transport() -> tuple[Transport, FakeConnection]:
     transport = Transport("ws://unused", transport_factory=lambda _url: connection)
     await transport.connect()
     return transport, connection
+
+
+@pytest.mark.parametrize("connect_timeout", [None, 20])
+async def test_connect_timeout_is_typed_and_terminal(
+    connect_timeout: float | None,
+) -> None:
+    async def factory(_url: str | None) -> FakeConnection:
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    transport = Transport(
+        "ws://unused",
+        default_timeout=40,
+        transport_factory=cast(TransportFactory, factory),
+        connect_timeout=connect_timeout,
+    )
+    async with asyncio.timeout(1):
+        with pytest.raises(BAPTimeoutError) as caught:
+            await transport.connect()
+        assert caught.value.operation == "connect"
+        assert caught.value.timeout_ms == (40 if connect_timeout is None else 20)
+        assert caught.value.__context__ is None
+        assert transport.closed
+        with pytest.raises((ConnectionError, BAPTimeoutError)):
+            await transport.send("query { x }")
+    await transport.close()
+
+
+@pytest.mark.parametrize("connect_timeout", [0, -1])
+async def test_connect_timeout_disabled(connect_timeout: float) -> None:
+    connection = FakeConnection()
+
+    async def factory(_url: str | None) -> FakeConnection:
+        await asyncio.sleep(0.05)
+        return connection
+
+    transport = Transport(
+        "ws://unused",
+        default_timeout=10,
+        transport_factory=cast(TransportFactory, factory),
+        connect_timeout=connect_timeout,
+    )
+    await transport.connect()
+    assert not transport.closed
+    await transport.close()
+
+
+async def test_failed_connection_init_closes_connection() -> None:
+    class BrokenConnection(FakeConnection):
+        async def send(self, message: str) -> None:
+            raise OSError("socket gone ?token=SECRET")
+
+    connection = BrokenConnection()
+    transport = Transport("ws://unused", transport_factory=lambda _url: connection)
+    with pytest.raises(ConnectionError) as caught:
+        await transport.connect()
+    assert connection.closed
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    assert "SECRET" not in str(caught.value)
+    await transport.close()
+
+
+async def test_connect_timeout_survives_stalled_cleanup() -> None:
+    class StalledConnection(FakeConnection):
+        async def send(self, message: str) -> None:
+            await asyncio.Event().wait()
+
+        async def close(self) -> None:
+            await asyncio.Event().wait()
+
+    transport = Transport(
+        "ws://unused",
+        transport_factory=lambda _url: StalledConnection(),
+        connect_timeout=20,
+    )
+    async with asyncio.timeout(6):
+        with pytest.raises(BAPTimeoutError) as caught:
+            await transport.connect()
+    assert caught.value.operation == "connect"
+    assert caught.value.timeout_ms == 20
+    assert caught.value.__context__ is None
+    assert transport.closed
+    await transport.close()
+
+
+@pytest.mark.parametrize("stage", ["factory", "init"])
+async def test_connect_rejects_suppressed_deadline_cancellation(stage: str) -> None:
+    async def stall() -> None:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            pass
+
+    class LateConnection(FakeConnection):
+        async def send(self, message: str) -> None:
+            if stage == "init":
+                await stall()
+            await super().send(message)
+
+    connection = LateConnection()
+
+    async def factory(_url: str | None) -> FakeConnection:
+        if stage == "factory":
+            await stall()
+        return connection
+
+    transport = Transport(
+        "ws://unused",
+        transport_factory=cast(TransportFactory, factory),
+        connect_timeout=20,
+    )
+    async with asyncio.timeout(1):
+        with pytest.raises(BAPTimeoutError) as caught:
+            await transport.connect()
+    assert caught.value.operation == "connect"
+    assert caught.value.timeout_ms == 20
+    assert connection.closed
+    assert transport.closed
+    await transport.close()
+
+
+async def test_cancelled_connect_waiter_does_not_poison_others() -> None:
+    sent = asyncio.Event()
+
+    class SignallingConnection(FakeConnection):
+        async def send(self, message: str) -> None:
+            await super().send(message)
+            if json.loads(message)["type"] == "subscribe":
+                sent.set()
+
+    connection = SignallingConnection()
+    gate = asyncio.Event()
+    started = asyncio.Event()
+
+    async def factory(_url: str | None) -> FakeConnection:
+        started.set()
+        await gate.wait()
+        return connection
+
+    transport = Transport(
+        "ws://unused", transport_factory=cast(TransportFactory, factory)
+    )
+    one: asyncio.Task[object] = asyncio.create_task(transport.send("query { x }"))
+    two: asyncio.Task[object] = asyncio.create_task(transport.send("query { y }"))
+    await started.wait()
+    one.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await one
+    gate.set()
+    async with asyncio.timeout(1):
+        await sent.wait()
+        connection.receive({"id": "1", "type": "next", "payload": {"data": {"y": 2}}})
+        connection.receive({"id": "1", "type": "complete"})
+        assert await two == {"y": 2}
+        sent.clear()
+        three: asyncio.Task[object] = asyncio.create_task(transport.send("query { z }"))
+        await sent.wait()
+        connection.receive({"id": "2", "type": "complete"})
+        assert await three == {}
+    await transport.close()
+
+
+async def test_abandoned_connect_failure_has_no_unretrieved_exception() -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+    finished = asyncio.Event()
+
+    async def factory(_url: str | None) -> FakeConnection:
+        started.set()
+        await release.wait()
+        finished.set()
+        raise ConnectionError("factory failed")
+
+    loop = asyncio.get_running_loop()
+    previous_handler = loop.get_exception_handler()
+    errors: list[dict[str, object]] = []
+    loop.set_exception_handler(lambda _loop, context: errors.append(context))
+    try:
+        transport = Transport(
+            "ws://unused", transport_factory=cast(TransportFactory, factory)
+        )
+        waiter: asyncio.Task[object] = asyncio.create_task(
+            transport.send("query { x }")
+        )
+        await started.wait()
+        waiter.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await waiter
+        del waiter
+        release.set()
+        await finished.wait()
+        await asyncio.sleep(0)
+        await transport.close()
+        del transport
+        gc.collect()
+        assert errors == []
+    finally:
+        loop.set_exception_handler(previous_handler)
+
+
+async def test_complete_during_timeout_still_raises_timeout() -> None:
+    class EchoComplete(FakeConnection):
+        async def send(self, message: str) -> None:
+            await super().send(message)
+            frame = json.loads(message)
+            if frame["type"] == "complete":
+                self.receive(frame)
+
+    connection = EchoComplete()
+    transport = Transport("ws://unused", transport_factory=lambda _url: connection)
+    with pytest.raises(BAPTimeoutError):
+        await transport.send("query { x }", timeout=10)
+    assert connection.sent[-1] == {"id": "1", "type": "complete"}
+    await transport.close()
+
+
+async def test_subscription_error_completes_stream_and_tells_server() -> None:
+    transport, connection = await connected_transport()
+    errors: list[Exception] = []
+    values: list[object] = []
+    await transport.subscribe(
+        "subscription { x }",
+        None,
+        Subscriber(
+            next=values.append,
+            error=errors.append,
+            complete=lambda: None,
+        ),
+    )
+    connection.receive(
+        {"id": "1", "type": "next", "payload": {"errors": [{"message": "bad one"}]}}
+    )
+    await asyncio.sleep(0)
+    connection.receive({"id": "1", "type": "next", "payload": {"data": {"x": 1}}})
+    assert len(errors) == 1
+    assert isinstance(errors[0], BrowserQLError)
+    assert str(errors[0]) == "bad one"
+    assert not values
+    assert [f for f in connection.sent if f["type"] == "complete"] == [
+        {"id": "1", "type": "complete"}
+    ]
+    await transport.close()
+
+
+@pytest.mark.parametrize("entry", ["boom", 42, None])
+@pytest.mark.parametrize("frame_type", ["error", "next"])
+async def test_malformed_error_payload_fails_only_that_operation(
+    entry: object,
+    frame_type: str,
+) -> None:
+    transport, connection = await connected_transport()
+    task: asyncio.Task[object] = asyncio.create_task(transport.send("query { x }"))
+    await asyncio.sleep(0)
+    payload = [entry] if frame_type == "error" else {"errors": [entry]}
+    connection.receive({"id": "1", "type": frame_type, "payload": payload})
+    with pytest.raises(BrowserQLError, match=str(entry)):
+        await task
+    assert not transport.closed
+    following: asyncio.Task[object] = asyncio.create_task(transport.send("query { y }"))
+    await asyncio.sleep(0)
+    connection.receive({"id": "2", "type": "next", "payload": {"data": {"y": 7}}})
+    connection.receive({"id": "2", "type": "complete"})
+    assert await following == {"y": 7}
+    await transport.close()
+
+
+async def test_empty_errors_list_is_success() -> None:
+    transport, connection = await connected_transport()
+    task: asyncio.Task[object] = asyncio.create_task(transport.send("query { x }"))
+    await asyncio.sleep(0)
+    connection.receive(
+        {"id": "1", "type": "next", "payload": {"data": {"x": 1}, "errors": []}}
+    )
+    connection.receive({"id": "1", "type": "complete"})
+    assert await task == {"x": 1}
+    await transport.close()
+
+
+@pytest.mark.parametrize("closed", [False, True])
+async def test_unsubscribe_never_raises(closed: bool) -> None:
+    class BrokenSend(FakeConnection):
+        broken = False
+
+        async def send(self, message: str) -> None:
+            if self.broken:
+                raise OSError("socket gone")
+            await super().send(message)
+
+    connection = BrokenSend()
+    transport = Transport("ws://unused", transport_factory=lambda _url: connection)
+    unsubscribe = await transport.subscribe(
+        "subscription { x }",
+        None,
+        Subscriber(
+            next=lambda _value: None,
+            error=lambda _error: None,
+            complete=lambda: None,
+        ),
+    )
+    if closed:
+        await transport.close()
+    connection.broken = True
+    count = len(connection.sent)
+    await unsubscribe()
+    await unsubscribe()
+    assert len(connection.sent) == count
+    await transport.close()
+
+
+@pytest.mark.parametrize("site", ["factory", "dial", "send", "factory_timeout"])
+async def test_connection_errors_have_no_context(site: str) -> None:
+    class BrokenSend(FakeConnection):
+        async def send(self, message: str) -> None:
+            if json.loads(message)["type"] == "subscribe":
+                raise OSError("send failed ?token=SECRET")
+            await super().send(message)
+
+    def factory(_url: str | None) -> FakeConnection:
+        if site == "factory":
+            raise RuntimeError("dial failed wss://h/bql?token=SECRET")
+        if site == "factory_timeout":
+            raise TimeoutError("dial failed ?token=SECRET")
+        return BrokenSend()
+
+    transport = Transport(
+        "https://example.invalid/bql?token=SECRET",
+        transport_factory=None if site == "dial" else cast(TransportFactory, factory),
+    )
+    with pytest.raises(ConnectionError) as caught:
+        await transport.send("query { x }")
+    assert caught.value.__cause__ is None
+    assert caught.value.__context__ is None
+    assert "SECRET" not in str(caught.value)
+    await transport.close()
+
+
+def test_log_filter_survives_bad_records() -> None:
+    for message, args, expected in [
+        ("", (), ""),
+        ("GET /bql?token=abc", (), "GET /bql?token=<redacted>"),
+    ]:
+        record = logging.LogRecord("test", logging.DEBUG, "", 0, message, args, None)
+        assert _RedactSecrets().filter(record)
+        assert record.msg == expected
+
+
+def test_bad_log_format_does_not_leak_secrets(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    logger = logging.Logger("redaction-test", logging.DEBUG)
+    logger.addFilter(_RedactSecrets())
+    logger.addHandler(logging.StreamHandler())
+    logger.debug("GET /bql?token=SECRET %d", "x")
+
+    captured = capsys.readouterr()
+    assert "SECRET" not in captured.out + captured.err
+    assert "Logging error" not in captured.err
 
 
 @pytest.mark.asyncio

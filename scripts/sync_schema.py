@@ -17,8 +17,10 @@ import urllib.parse
 import urllib.request
 import zlib
 from dataclasses import dataclass
+from email.message import Message
 from hashlib import sha256
 from pathlib import Path
+from typing import IO
 
 from graphql import parse
 
@@ -63,11 +65,26 @@ class Candidate:
         return sha256(self.content).hexdigest()
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(
+        self,
+        req: urllib.request.Request,
+        fp: IO[bytes],
+        code: int,
+        msg: str,
+        headers: Message,
+        newurl: str,
+    ) -> None:
+        fp.close()
+        raise ValueError("npm registry redirects are not allowed")
+
+
 def http_get(url: str, limit: int) -> bytes:
     request = urllib.request.Request(
         url, headers={"User-Agent": "browserless-bap-schema-sync"}
     )
-    with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
+    opener = urllib.request.build_opener(NoRedirect())
+    with opener.open(request, timeout=TIMEOUT_SECONDS) as response:
         destination = urllib.parse.urlsplit(response.geturl())
         if destination.scheme != "https" or destination.hostname != NPM_REGISTRY_HOST:
             raise ValueError("response must come from the HTTPS npm registry")

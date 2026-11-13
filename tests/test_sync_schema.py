@@ -3,11 +3,18 @@ import hashlib
 import importlib.util
 import io
 import json
+import os
+import subprocess
 import sys
 import tarfile
+import textwrap
 import tomllib
+import urllib.request
+import urllib.response
+from email.message import Message
 from hashlib import sha256
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -176,12 +183,19 @@ def test_invalid_archive_preserves_outputs(
         "sha512-" + base64.b64encode(hashlib.sha512(registry["data"]).digest()).decode()
     )
     sync_schema.TARGET.write_bytes(b"original schema")
-    sync_schema.LOCK.write_text("original lock")
+    original_lock = 'source_repo = "external"\n'
+    sync_schema.LOCK.write_text(original_lock)
     assert sync_schema.main(["--from-npm", "2.2.0"]) == 1
     assert sync_schema.TARGET.read_bytes() == b"original schema"
-    assert sync_schema.LOCK.read_text() == "original lock"
-    if not members:
-        assert MEMBER in capsys.readouterr().err
+    assert sync_schema.LOCK.read_text() == original_lock
+    message = capsys.readouterr().err
+    assert MEMBER in message
+    if members and members[0][1] == b"not graphql":
+        assert "Invalid GraphQL schema" in message
+    elif len(members) != 1:
+        assert "expected exactly one" in message
+    else:
+        assert "must be a regular file" in message
 
 
 def test_unrelated_archive_paths_are_never_extracted(
@@ -280,10 +294,91 @@ def test_http_response_host_and_size(
             return url
 
     monkeypatch.setattr(
-        sync_schema.urllib.request, "urlopen", lambda *_a, **_kw: Response(body)
+        sync_schema.urllib.request,
+        "build_opener",
+        lambda *_: SimpleNamespace(open=lambda *_a, **_kw: Response(body)),
     )
     if valid:
         assert sync_schema.http_get(REGISTRY, 3) == body
     else:
         with pytest.raises(ValueError):
             sync_schema.http_get(REGISTRY, 3)
+
+
+@pytest.mark.parametrize(
+    "location", ["https://example.com/x", "http://registry.npmjs.org/x"]
+)
+def test_http_redirect_is_rejected_before_following_or_reading(
+    monkeypatch: pytest.MonkeyPatch, location: str
+) -> None:
+    requests: list[str] = []
+
+    class Body(io.BytesIO):
+        def read(self, size: int | None = -1) -> bytes:
+            raise AssertionError("redirect body must not be consumed")
+
+    def response(_self: Any, request: urllib.request.Request) -> Any:
+        requests.append(request.full_url)
+        if len(requests) > 1:
+            raise AssertionError("redirect target must not be requested")
+        headers = Message()
+        headers["Location"] = location
+        result: Any = urllib.response.addinfourl(Body(), headers, request.full_url, 302)
+        result.msg = "Found"
+        return result
+
+    monkeypatch.setattr(urllib.request.HTTPSHandler, "https_open", response)
+    with pytest.raises(ValueError, match="redirect"):
+        sync_schema.http_get(REGISTRY, 3)
+    assert requests == [REGISTRY]
+
+
+@pytest.mark.parametrize(
+    ("branch_exists", "open_pr", "create", "push"),
+    [
+        (True, False, True, False),
+        (False, False, True, True),
+        (True, True, False, False),
+    ],
+)
+def test_schema_workflow_recovers_branch_without_pr(
+    branch_exists: bool,
+    open_pr: bool,
+    create: bool,
+    push: bool,
+) -> None:
+    workflow = (SCRIPT.parents[1] / ".github/workflows/schema-sync.yml").read_text()
+    script = textwrap.dedent(workflow.rsplit("run: |\n", 1)[1])
+    fake_commands = """
+    git() {
+      if [ "$1" = ls-remote ]; then return "$BRANCH_MISSING"; fi
+      echo "git $*"
+    }
+    gh() {
+      if [ "$1 $2" = "pr list" ]; then
+        if [ "$OPEN_PR" = 1 ]; then
+          echo "https://github.com/browserless/bap-py/pull/123"
+        fi
+      else
+        echo "created PR"
+      fi
+    }
+    """
+    result = subprocess.run(
+        ["bash", "-e", "-c", fake_commands + script],
+        env={
+            **os.environ,
+            "BRANCH_MISSING": "0" if branch_exists else "2",
+            "OPEN_PR": "1" if open_pr else "0",
+            "VERSION": "2.3.0",
+            "GITHUB_REPOSITORY": "browserless/bap-py",
+            "RUNNER_TEMP": "/unused",
+            "GH_TOKEN": "test-token",
+        },
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert ("created PR" in result.stdout) is create
+    assert ("git push" in result.stdout) is push

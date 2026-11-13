@@ -74,16 +74,19 @@ jobs:
           VERSION: ${{ needs.sync.outputs.version }}
         run: |
           branch="schema-sync/bap-ts-$VERSION"
-          if git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPOSITORY.git" "$branch" >/dev/null; then
-            echo "Branch $branch already exists."
+          existing_pr="$(gh pr list --head "$branch" --state all --json url --jq '.[0].url // empty')"
+          if [ -n "$existing_pr" ]; then
+            echo "Pull request already exists: $existing_pr"
             exit 0
           fi
-          git apply "$RUNNER_TEMP/schema-sync.patch"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git commit -am "feat(schema): sync with @browserless.io/bap-ts $VERSION"
-          git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "$branch"
+          if ! git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPOSITORY.git" "$branch" >/dev/null; then
+            git apply "$RUNNER_TEMP/schema-sync.patch"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git switch -c "$branch"
+            git commit -am "feat(schema): sync with @browserless.io/bap-ts $VERSION"
+            git push "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git" "$branch"
+          fi
           gh pr create --base main --head "$branch" \
             --title "feat(schema): sync with @browserless.io/bap-ts $VERSION" \
             --body "Automated sync of the vendored BrowserQL schema and generated code from @browserless.io/bap-ts $VERSION on npm. If this diff removes or renames anything, change the title to feat!: before merging. Pull requests opened with the built-in workflow token do not start checks: close and reopen this pull request to run them."

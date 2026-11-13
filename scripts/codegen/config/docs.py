@@ -4,6 +4,9 @@ LLMS_START = "<!-- AUTOGEN:method-list START -->"
 LLMS_END = "<!-- AUTOGEN:method-list END -->"
 
 METHOD_DOCSTRINGS = {
+    "check": "Check the checkbox matching `selector`.",
+    "uncheck": "Uncheck the checkbox matching `selector`.",
+    "cookies": "Return the cookies on the page.",
     "content": "Return the full HTML content of the page as a string.",
     "watch_event": (
         "Start tracking `event` now so a later `wait_for_event` call can return "

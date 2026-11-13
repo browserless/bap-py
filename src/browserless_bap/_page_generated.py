@@ -82,7 +82,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> ClickResponse:
-        "Sets or un-sets the value of a checkbox on the page"
+        "Check the checkbox matching `selector`."
         args = drop_unset(
             {
                 "selector": selector,
@@ -112,7 +112,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> ClickResponse:
-        "Sets or un-sets the value of a checkbox on the page"
+        "Uncheck the checkbox matching `selector`."
         args = drop_unset(
             {
                 "selector": selector,
@@ -192,7 +192,7 @@ class PageGenerated:
     async def cookies(
         self,
     ) -> list[StandardCookie]:
-        "Sets and gets cookies on the page"
+        "Return the cookies on the page."
         args = None
         result = await self._execute(
             "cookies",

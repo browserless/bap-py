@@ -64,7 +64,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> ClickResponse:
-        "Sets or un-sets the value of a checkbox on the page"
+        "Check the checkbox matching `selector`."
         return cast(
             "ClickResponse",
             self._invoke(
@@ -86,7 +86,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> ClickResponse:
-        "Sets or un-sets the value of a checkbox on the page"
+        "Uncheck the checkbox matching `selector`."
         return cast(
             "ClickResponse",
             self._invoke(
@@ -144,7 +144,7 @@ class PageGenerated:
     def cookies(
         self,
     ) -> list[StandardCookie]:
-        "Sets and gets cookies on the page"
+        "Return the cookies on the page."
         return cast(
             "list[StandardCookie]",
             self._invoke(

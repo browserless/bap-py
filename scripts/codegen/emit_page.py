@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 
-from .config.docs import METHOD_DOCSTRINGS
 from .model import MethodModel
 from .writer import HEADER
 
@@ -73,6 +72,7 @@ def _execute_lines(model: MethodModel, prefix: str) -> list[str]:
     ]
     if timeout is not None:
         lines.append(f"            timeout=None if {timeout} is UNSET else {timeout},")
+    lines.extend(_opt_in_lines(model, "            "))
     lines.append("        )")
     return lines
 
@@ -91,16 +91,33 @@ def _cast_execute_lines(model: MethodModel) -> list[str]:
         lines.append(
             f"                timeout=None if {timeout} is UNSET else {timeout},"
         )
+    lines.extend(_opt_in_lines(model, "                "))
     lines.extend(("            ),", "        )"))
     return lines
+
+
+def _opt_in_lines(model: MethodModel, indent: str) -> list[str]:
+    params = [param for param in model.params if param.opt_in is not None]
+    if not params:
+        return []
+    entries = ", ".join(
+        f"({json.dumps(param.opt_in)}, {param.py_name})" for param in params
+    )
+    return [
+        f"{indent}opt_in=tuple(",
+        f"{indent}    group",
+        f"{indent}    for group, enabled in ({entries},)",
+        f"{indent}    if enabled is True",
+        f"{indent}),",
+    ]
 
 
 def _async_method(model: MethodModel) -> list[str]:
     lines = [f"    async def {model.py_name}("]
     lines.extend(_signature_lines(model, "        "))
     lines.append(f"    ) -> {model.return_type}:")
-    if docstring := METHOD_DOCSTRINGS.get(model.py_name):
-        lines.append(f"        {json.dumps(docstring)}")
+    if docstring := model.doc:
+        lines.append(f"        {json.dumps(docstring, ensure_ascii=False)}")
     lines.extend(_argument_lines(model))
     if model.flavor == "buffer":
         has_path = any(param.py_name == "path" for param in model.params)
@@ -181,6 +198,7 @@ def emit_async(models: list[MethodModel]) -> str:
         "# ruff: noqa: ASYNC109, F403, F405",
         "from __future__ import annotations",
         "",
+        "from collections.abc import Sequence",
         "from typing import TYPE_CHECKING, Any, cast",
         "",
         "from ._codec import decode_base64, drop_unset, or_default, write_binary_file",
@@ -200,6 +218,7 @@ def emit_async(models: list[MethodModel]) -> str:
         "        response_type: str,",
         "        *,",
         "        timeout: float | None = None,",
+        "        opt_in: Sequence[str] = (),",
         "    ) -> Any:",
         "        raise NotImplementedError",
         "",
@@ -258,8 +277,8 @@ def emit_sync(models: list[MethodModel]) -> str:
         lines.append(f"    def {model.py_name}(")
         lines.extend(_signature_lines(model, "        "))
         lines.append(f"    ) -> {model.return_type}:")
-        if docstring := METHOD_DOCSTRINGS.get(model.py_name):
-            lines.append(f"        {json.dumps(docstring)}")
+        if docstring := model.doc:
+            lines.append(f"        {json.dumps(docstring, ensure_ascii=False)}")
         lines.extend(_sync_result_lines(model))
         lines.append("")
     return "\n".join(lines)

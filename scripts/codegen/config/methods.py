@@ -163,8 +163,6 @@ PLAYWRIGHT_METHODS = {
     "pdf",
     "query_selector",
     "query_selector_all",
-    "eval_on_selector",
-    "eval_on_selector_all",
     "wait_for_selector",
     "wait_for_function",
     "evaluate",

@@ -4,7 +4,7 @@ from typing import Any, cast
 
 import pytest
 
-from browserless_bap.errors import ConnectionError, TimeoutError
+from browserless_bap.errors import BAPConnectionError, BAPTimeoutError
 from browserless_bap.page import Page
 from browserless_bap.transport import Subscriber, Transport
 
@@ -126,7 +126,7 @@ async def test_wait_before_mint_and_independent_timeout() -> None:
     waiting = asyncio.create_task(page.wait_for_live_complete(timeout=0))
     await asyncio.sleep(0)
     await page.live_url()
-    with pytest.raises(TimeoutError):
+    with pytest.raises(BAPTimeoutError):
         await page.wait_for_live_complete(timeout=5)
     transport.event("userFailed")
     assert (await waiting)["reason"] == "userFailed"
@@ -143,10 +143,10 @@ async def test_wait_rejects_on_disconnect_or_close(disconnect: bool) -> None:
     await asyncio.sleep(0)
     if disconnect:
         assert transport.subscriber is not None
-        transport.subscriber.error(ConnectionError("disconnected"))
+        transport.subscriber.error(BAPConnectionError("disconnected"))
     else:
         await page.close()
-    with pytest.raises(ConnectionError):
+    with pytest.raises(BAPConnectionError):
         await waiting
     await page.close()
 
@@ -204,7 +204,7 @@ async def test_waits_survive_multiple_remints(end: str) -> None:
     if end == "close":
         await page.close()
         results = await asyncio.gather(*waits, return_exceptions=True)
-        assert all(isinstance(result, ConnectionError) for result in results)
+        assert all(isinstance(result, BAPConnectionError) for result in results)
     else:
         for reason in ["closed", "userDone", "timeout"]:
             transport.event(reason)
@@ -219,7 +219,7 @@ async def test_waits_survive_multiple_remints(end: str) -> None:
 async def test_mint_timeout_keeps_its_original_error() -> None:
     transport = LiveTransport()
     page = Page(cast(Transport, transport))
-    error = TimeoutError("liveURL", 25)
+    error = BAPTimeoutError("liveURL", 25)
 
     def fail() -> None:
         raise error
@@ -227,9 +227,9 @@ async def test_mint_timeout_keeps_its_original_error() -> None:
     transport.before_reply = fail
     waiting = asyncio.create_task(page.wait_for_live_complete(timeout=0))
     await asyncio.sleep(0)
-    with pytest.raises(TimeoutError) as mint_error:
+    with pytest.raises(BAPTimeoutError) as mint_error:
         await page.live_url()
-    with pytest.raises(TimeoutError) as wait_error:
+    with pytest.raises(BAPTimeoutError) as wait_error:
         await waiting
     assert mint_error.value is error
     assert wait_error.value is error
@@ -246,14 +246,14 @@ async def test_stream_failure_retained_until_remint(wait_before_failure: bool) -
         waiting = asyncio.create_task(page.wait_for_live_complete(timeout=0))
         await asyncio.sleep(0)
     assert transport.subscriber is not None
-    error = ConnectionError("disconnected")
+    error = BAPConnectionError("disconnected")
     transport.subscriber.error(error)
     if waiting is not None:
-        with pytest.raises(ConnectionError) as wait_error:
+        with pytest.raises(BAPConnectionError) as wait_error:
             await waiting
         assert wait_error.value is error
     for _ in range(2):
-        with pytest.raises(ConnectionError) as wait_error:
+        with pytest.raises(BAPConnectionError) as wait_error:
             await page.wait_for_live_complete(timeout=5)
         assert wait_error.value is error
     await page.live_url()
@@ -269,7 +269,7 @@ async def test_failed_handoff_retained_during_mint_then_retry(
     page = Page(cast(Transport, transport))
     entered = asyncio.Event()
     release = asyncio.Event()
-    error = ConnectionError("disconnected")
+    error = BAPConnectionError("disconnected")
     original_send = transport.send
 
     async def send(*_args: Any) -> Any:
@@ -283,12 +283,12 @@ async def test_failed_handoff_retained_during_mint_then_retry(
     assert transport.subscriber is not None
     transport.subscriber.error(error)
     try:
-        with pytest.raises(ConnectionError) as wait_error:
+        with pytest.raises(BAPConnectionError) as wait_error:
             await page.wait_for_live_complete(timeout=5)
         assert wait_error.value is error
     finally:
         release.set()
-        with pytest.raises(ConnectionError):
+        with pytest.raises(BAPConnectionError):
             await mint
 
     monkeypatch.setattr(transport, "send", original_send)
@@ -342,7 +342,7 @@ async def test_early_completion_matches_minted_id(matching: bool) -> None:
     transport.before_reply = before_reply
     await page.live_url()
     if not matching:
-        with pytest.raises(TimeoutError):
+        with pytest.raises(BAPTimeoutError):
             await page.wait_for_live_complete(timeout=5)
         transport.event("closed")
     assert await page.wait_for_live_complete() == {
@@ -355,7 +355,7 @@ async def test_early_completion_matches_minted_id(matching: bool) -> None:
 async def test_last_premint_wait_releases_subscription() -> None:
     transport = LiveTransport()
     page = Page(cast(Transport, transport))
-    with pytest.raises(TimeoutError):
+    with pytest.raises(BAPTimeoutError):
         await page.wait_for_live_complete(timeout=5)
     await asyncio.sleep(0)
     assert "liveComplete" not in page._unsubscribes
@@ -371,7 +371,7 @@ async def test_premint_timeout_preserves_other_waiter() -> None:
     page = Page(cast(Transport, transport))
     waiting = asyncio.create_task(page.wait_for_live_complete())
     await asyncio.sleep(0)
-    with pytest.raises(TimeoutError):
+    with pytest.raises(BAPTimeoutError):
         await page.wait_for_live_complete(timeout=5)
     assert "liveComplete" in page._unsubscribes
     await page.live_url()
@@ -399,7 +399,7 @@ async def test_mint_cancellation_does_not_cancel_waiter(
     mint.cancel()
     with pytest.raises(asyncio.CancelledError):
         await mint
-    with pytest.raises(ConnectionError, match="cancelled"):
+    with pytest.raises(BAPConnectionError, match="cancelled"):
         await waiting
     assert not waiting.cancelled()
     await page.close()

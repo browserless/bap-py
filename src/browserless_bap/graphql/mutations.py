@@ -20,7 +20,6 @@ RESPONSE_FIELDS: dict[str, str] = {
     "HTTPHeaders": "name value",
     "HTTPHeadersResponse": "headers { name value } time",
     "HTTPResponse": "status time text url",
-    "HTTPResponseWithRemoteMetadata": "ip port status time text url",
     "HoverResponse": "selector time x y",
     "JavaScriptResponse": "enabled time",
     "LiveURLCompleteEvent": "liveURLId reason",
@@ -30,13 +29,12 @@ RESPONSE_FIELDS: dict[str, str] = {
     "MarkdownResponse": "markdown time",
     "PDFResponse": "base64 size time",
     "ProxyResponse": "time",
-    "QuerySelectorResponse": "childElementCount className id innerHTML innerText localName outerHTML",
+    "QuerySelectorResponse": "childElementCount className id innerText localName",
     "ReconnectionResponse": "browserQLEndpoint browserWSEndpoint devtoolsFrontendUrl webSocketDebuggerUrl",
     "RejectResponse": "time enabled",
     "RequestHeader": "name value",
     "RequestResponse": "url method type headers { name value }",
-    "ResponseResponse": "status url method type headers { name value } body",
-    "ResponseResponseWithBodyEncoding": "status url method type headers { name value } body base64Encoded",
+    "ResponseResponse": "status url method type headers { name value }",
     "ScreenshotResponse": "base64 format time",
     "ScrollResponse": "selector time x y",
     "SelectResponse": "selector time value",
@@ -55,6 +53,19 @@ RESPONSE_FIELDS: dict[str, str] = {
     "WaitForResponseResponse": "time status url",
     "WaitForSelectorResponse": "height selector time y x width",
     "WaitForTimeoutResponse": "time"
+}
+
+OPTIONAL_FIELDS: dict[str, dict[str, str]] = {
+    "HTTPResponse": {
+        "remoteMetadata": "ip port"
+    },
+    "QuerySelectorResponse": {
+        "html": "innerHTML outerHTML"
+    },
+    "ResponseResponse": {
+        "body": "body",
+        "bodyEncoding": "body base64Encoded"
+    }
 }
 
 ARG_TYPES: dict[str, dict[str, str]] = {

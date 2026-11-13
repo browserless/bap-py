@@ -2,7 +2,7 @@
 # ruff: noqa: ASYNC109
 
 import inspect
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, assert_type, cast
 
@@ -96,6 +96,7 @@ class RecordingPage(Page):
                 Mapping[str, Any] | None,
                 str,
                 float | UnsetType | None,
+                Sequence[str],
             ]
         ] = []
 
@@ -106,8 +107,9 @@ class RecordingPage(Page):
         response_type: str,
         *,
         timeout: float | UnsetType | None = None,
+        opt_in: Sequence[str] = (),
     ) -> Any:
-        self.calls.append((mutation_name, args, response_type, timeout))
+        self.calls.append((mutation_name, args, response_type, timeout, opt_in))
         if mutation_name == "evaluate":
             return {"value": "2"}
         if mutation_name == "response":
@@ -123,8 +125,9 @@ class NullResultPage(RecordingPage):
         response_type: str,
         *,
         timeout: float | UnsetType | None = None,
+        opt_in: Sequence[str] = (),
     ) -> None:
-        self.calls.append((mutation_name, args, response_type, timeout))
+        self.calls.append((mutation_name, args, response_type, timeout, opt_in))
         return None
 
 
@@ -136,8 +139,9 @@ class SelectorListPage(RecordingPage):
         response_type: str,
         *,
         timeout: float | UnsetType | None = None,
+        opt_in: Sequence[str] = (),
     ) -> Any:
-        self.calls.append((mutation_name, args, response_type, timeout))
+        self.calls.append((mutation_name, args, response_type, timeout, opt_in))
         if mutation_name == "querySelectorAll":
             return [{"innerText": "first"}, {"innerText": "second"}]
         return {"ok": True}
@@ -171,12 +175,14 @@ async def test_goto_and_response_opt_ins_never_leak_client_flags() -> None:
     goto = page.calls[0]
     assert goto[0] == "goto"
     assert goto[1] == {"url": "https://example.com", "timeout": 500}
-    assert goto[2] == "HTTPResponseWithRemoteMetadata"
+    assert goto[2] == "HTTPResponse"
+    assert goto[4] == ("remoteMetadata",)
     assert goto[1] is not None
     assert "remoteResponseMetadata" not in goto[1]
 
     response = page.calls[1]
-    assert response[2] == "ResponseResponseWithBodyEncoding"
+    assert response[2] == "ResponseResponse"
+    assert response[4] == ("bodyEncoding",)
     assert response[1] is not None
     assert "bodyEncoding" not in response[1]
     await page.close()
@@ -229,7 +235,7 @@ async def test_wait_for_function_rewrite_preserves_raw_timeout() -> None:
         complete_on_promise_resolution=True,
     )
 
-    _, args, _, timeout = page.calls[0]
+    _, args, _, timeout, _ = page.calls[0]
     assert args is not None
     assert args["fn"].startswith("async () => { await (")
     assert "completeOnPromiseResolution" not in args
@@ -289,8 +295,8 @@ async def test_element_handle_descendant_selector_scopes_every_alternative() -> 
 async def test_element_handle_queries_forward_options() -> None:
     page = SelectorListPage()
     handle = (await page.query_selector_all(".item"))[0]
-    await handle.query_selector("li", timeout=5000, visible=True)
-    await handle.query_selector_all("li", timeout=750, visible=False)
+    await handle.query_selector("li", timeout=5000, visible=True, html=True)
+    await handle.query_selector_all("li", timeout=750, visible=False, html=True)
 
     assert page.calls[2][1] is not None
     assert page.calls[2][1]["selector"] == (
@@ -304,6 +310,7 @@ async def test_element_handle_queries_forward_options() -> None:
         assert call[1]["timeout"] == timeout
         assert call[1]["visible"] is visible
         assert call[3] == timeout
+        assert call[4] == ("html",)
     await page.close()
 
 
@@ -347,3 +354,70 @@ async def test_generated_methods_preserve_defaults_for_null_results() -> None:
     assert await page.screenshot() == b""
 
     await page.close()
+
+
+@pytest.mark.asyncio
+async def test_optional_fields_are_selected_only_when_requested() -> None:
+    class QueryTransport(RecordingTransport):
+        def __init__(self) -> None:
+            self.queries: list[str] = []
+
+        async def send(
+            self,
+            query: str,
+            variables: Mapping[str, Any] | None = None,
+            timeout: float | None = None,
+        ) -> dict[str, Any]:
+            self.queries.append(query)
+            return {
+                "querySelector": {"innerText": "hello"},
+                "querySelectorAll": [{"innerText": "hello"}],
+                "response": [],
+                "goto": {},
+            }
+
+    transport = QueryTransport()
+    page = Page(cast(Transport, transport))
+    try:
+        for query_method in (page.query_selector, page.query_selector_all):
+            await query_method("p")
+            assert "innerHTML" not in transport.queries[-1]
+            assert "outerHTML" not in transport.queries[-1]
+            await query_method("p", html=True)
+            assert "innerHTML outerHTML" in transport.queries[-1]
+            await query_method("p", html=False)
+            assert "innerHTML" not in transport.queries[-1]
+        await page.response()
+        assert "body" not in transport.queries[-1]
+        await page.response(body=True)
+        assert "body" in transport.queries[-1].split()
+        assert "base64Encoded" not in transport.queries[-1]
+        await page.response(body=True, body_encoding=True)
+        assert transport.queries[-1].split().count("body") == 1
+        assert "base64Encoded" in transport.queries[-1]
+        await page.goto("https://example.com", remote_response_metadata=True)
+        assert "ip port" in transport.queries[-1]
+    finally:
+        await page.close()
+
+
+@pytest.mark.asyncio
+async def test_element_html_requires_opt_in_and_scoped_queries_forward_it() -> None:
+    from browserless_bap.element_handle import ElementHandle
+    from browserless_bap.errors import BAPValueError
+
+    page = SelectorListPage()
+    try:
+        plain = ElementHandle(page, "ul", {})
+        for attribute in ("inner_html", "outer_html"):
+            with pytest.raises(BAPValueError, match="html=True"):
+                getattr(plain, attribute)
+        requested = ElementHandle(page, "ul", {"innerHTML": None, "outerHTML": ""})
+        assert requested.inner_html is None
+        assert requested.outer_html == ""
+        await plain.query_selector("li", html=True)
+        assert page.calls[-1][4] == ("html",)
+        await plain.query_selector_all("li", html=True)
+        assert page.calls[-1][4] == ("html",)
+    finally:
+        await page.close()

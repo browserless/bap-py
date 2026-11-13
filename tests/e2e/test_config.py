@@ -131,5 +131,5 @@ def test_live_suite_needs_explicit_e2e_selection(selection: list[str]) -> None:
     )
 
     assert result.returncode == 0, result.stdout
-    assert "6 skipped" in result.stdout
+    assert "7 skipped" in result.stdout
     assert "requires -m e2e" in result.stdout

@@ -108,8 +108,8 @@ contents between the markers by hand.
 | `content` | `html` | `str` | ✅ |
 | `cookies` | `cookies` | `list[StandardCookie]` | ✅ |
 | `emulate_media` | `emulateMediaType` | `EmulateMediaTypeResponse` | ✅ |
-| `eval_on_selector` | `text` | `str` | ✅ |
-| `eval_on_selector_all` | `mapSelector` | `list[MapSelectorResponse]` | ✅ |
+| `eval_on_selector` | `text` | `str` | — |
+| `eval_on_selector_all` | `mapSelector` | `list[MapSelectorResponse]` | — |
 | `evaluate` | `evaluate` | `str \| None` | ✅ |
 | `fulfill` | `fulfill` | `FulfillResponse` | — |
 | `go_back` | `back` | `HTTPResponse \| None` | ✅ |
@@ -161,6 +161,26 @@ contents between the markers by hand.
 | `watch_event` | `watchEvent` | `WaitForEvent` | — |
 
 <!-- AUTOGEN:method-table END -->
+
+## Response keys and optional fields
+
+Options and keyword arguments use `snake_case`; returned dictionaries keep the
+server's field names (`liveURLId`, `httpOnly`, `childElementCount`), as Playwright
+for Python does for cookies.
+
+`query_selector()` and `query_selector_all()` fetch element HTML only with
+`html=True`. Reading a handle's `inner_html` or `outer_html` without requesting it
+raises `BAPValueError` with a hint. This also applies to element-scoped queries.
+`response()` omits bodies by default; pass `body=True` to fetch them, or
+`body_encoding=True` to fetch both the body and its `base64Encoded` flag.
+
+`eval_on_selector()` returns the first matching element's text, and
+`eval_on_selector_all()` returns element details. Unlike Playwright's methods,
+neither accepts a page function.
+
+SDK exceptions are `BAPTimeoutError`, `BAPConnectionError` and `BAPValueError`.
+They still subclass Python's matching built-in exceptions; the builtin-named SDK
+exports have been removed.
 
 ## Schema and generated code
 
@@ -237,7 +257,7 @@ card, import `LiveURLInstructions` from `browserless_bap.types`.
 
 The SDK subscribes before minting and retains completion until the next mint,
 so a quick completion is not lost between `live_url()` and `wait_for_live_complete()`.
-Wait timeouts are in milliseconds and raise the SDK `TimeoutError`. By default
+Wait timeouts are in milliseconds and raise `BAPTimeoutError`. By default
 there is no client wait deadline; pass a positive timeout to bound the wait.
 `timeout=0` also disables the wait deadline. Timing out or cancelling a wait does
 not close the live URL.

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 
 from .config.docs import LLMS_END, LLMS_START, README_END, README_START
@@ -50,6 +52,16 @@ def generate(root: Path, *, docs_output: Path | None = None) -> list[Path]:
         root / path: content
         for path, content in zip(GENERATED_OUTPUTS, rendered, strict=True)
     }
+    for path in outputs:
+        if path.name == "_page_generated.py":
+            outputs[path] = subprocess.run(
+                [sys.executable, "-m", "ruff", "format", "--stdin-filename", str(path)],
+                input=outputs[path],
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=root,
+            ).stdout
     changed = [
         path for path, content in outputs.items() if write_if_changed(path, content)
     ]

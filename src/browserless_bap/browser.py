@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-from .errors import ValueError
+from .errors import BAPValueError
 from .page import Page
 from .transport import Transport, TransportFactory
 
@@ -28,7 +28,7 @@ class Browser:
         connect_timeout: float | None = None,
     ) -> None:
         if browser_ws_endpoint is None and transport is None:
-            raise ValueError(
+            raise BAPValueError(
                 "Either `browser_ws_endpoint` or `transport` must be provided"
             )
         self._base_url = browser_ws_endpoint
@@ -43,7 +43,7 @@ class Browser:
         """Open a new page with its own BAP WebSocket."""
 
         if self._closed:
-            raise ValueError("Browser is closed")
+            raise BAPValueError("Browser is closed")
         self._pages = [page for page in self._pages if not page.closed]
         transport = Transport(
             _with_token(self._base_url, self._token),
@@ -58,7 +58,7 @@ class Browser:
             raise
         if self._closed:
             await transport.close()
-            raise ValueError("Browser is closed")
+            raise BAPValueError("Browser is closed")
         page = Page(transport)
         self._pages.append(page)
         return page

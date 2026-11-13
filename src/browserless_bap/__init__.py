@@ -9,10 +9,7 @@ from .errors import (
     BAPTimeoutError,
     BAPValueError,
     BrowserQLError,
-    ConnectionError,
     SchemaMismatchError,
-    TimeoutError,
-    ValueError,
 )
 from .page import Page
 
@@ -24,12 +21,9 @@ __all__ = [
     "Browser",
     "BrowserQLError",
     "Browserless",
-    "ConnectionError",
     "ElementHandle",
     "Page",
     "SchemaMismatchError",
-    "TimeoutError",
-    "ValueError",
     "__version__",
     "sync_api",
 ]

@@ -2,6 +2,7 @@
 # ruff: noqa: ASYNC109, F403, F405
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
 from ._codec import decode_base64, drop_unset, or_default, write_binary_file
@@ -21,6 +22,7 @@ class PageGenerated:
         response_type: str,
         *,
         timeout: float | None = None,
+        opt_in: Sequence[str] = (),
     ) -> Any:
         raise NotImplementedError
 
@@ -31,6 +33,7 @@ class PageGenerated:
         *,
         origin: str | UnsetType = UNSET,
     ) -> HTTPResponse | None:
+        "Provides credentials for HTTP authentication (RFC 7235). When set, any HTTP\nauthentication challenge (401/407) will be answered with the supplied\ncredentials automatically. If an `origin` is provided, only challenges whose\norigin matches will use these credentials; otherwise every challenge is\nanswered (Puppeteer-style)."
         args = drop_unset(
             {
                 "username": username,
@@ -53,6 +56,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait_until: WaitUntilHistory | UnsetType = UNSET,
     ) -> HTTPResponse | None:
+        "Goes back in browser history, optionally accepting waitUntil and timeout arguments. Returns null if no back is possible"
         args = drop_unset(
             {
                 "timeout": timeout,
@@ -78,6 +82,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> ClickResponse:
+        "Sets or un-sets the value of a checkbox on the page"
         args = drop_unset(
             {
                 "selector": selector,
@@ -107,6 +112,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> ClickResponse:
+        "Sets or un-sets the value of a checkbox on the page"
         args = drop_unset(
             {
                 "selector": selector,
@@ -136,6 +142,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> ClickResponse:
+        "Waits for the element to be visible, scrolls to it, then clicks on it with native events"
         args = drop_unset(
             {
                 "selector": selector,
@@ -163,6 +170,7 @@ class PageGenerated:
         wait_until: WaitUntilHistory | UnsetType = UNSET,
         wait_until_all: list[WaitUntilHistory] | UnsetType = UNSET,
     ) -> HTTPResponse | None:
+        "Sets the given HTML content on the page with an optional waitUntil parameter"
         args = drop_unset(
             {
                 "html": html,
@@ -184,6 +192,7 @@ class PageGenerated:
     async def cookies(
         self,
     ) -> list[StandardCookie]:
+        "Sets and gets cookies on the page"
         args = None
         result = await self._execute(
             "cookies",
@@ -204,6 +213,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait_until: WaitUntilHistory | UnsetType = UNSET,
     ) -> HTTPResponse | None:
+        "Goes forward in browser history, optionally accepting waitUntil and timeout arguments. Returns null if no forward is possible"
         args = drop_unset(
             {
                 "timeout": timeout,
@@ -231,6 +241,7 @@ class PageGenerated:
         referrer_policy: str | UnsetType = UNSET,
         remote_response_metadata: bool | UnsetType = UNSET,
     ) -> HTTPResponse | None:
+        "Navigates to a URL with an optional waitUntil parameter and timeout parameter"
         args = drop_unset(
             {
                 "url": url,
@@ -248,6 +259,13 @@ class PageGenerated:
                 args,
                 "HTTPResponse",
                 timeout=None if timeout is UNSET else timeout,
+                opt_in=tuple(
+                    group
+                    for group, enabled in (
+                        ("remoteMetadata", remote_response_metadata),
+                    )
+                    if enabled is True
+                ),
             ),
         )
 
@@ -260,6 +278,7 @@ class PageGenerated:
         clean: CleanInput | UnsetType = UNSET,
         rewrite: HTMLRewriteInput | UnsetType = UNSET,
     ) -> HTMLResponse:
+        'Returns the HTML content of the page or selector when specified. This API can also "clean" HTML markup returned by specifying a "clean" argument with numerous options. Features of the "clean" argument include removal of non-text nodes, removal of DOM attributes, as well as removal of excessive whitespace and newlines. Using "clean" can save nearly 1,000 times the payload size. Useful for LLM\'s and other scenarios'
         args = drop_unset(
             {
                 "selector": selector,
@@ -282,6 +301,7 @@ class PageGenerated:
     async def content(
         self,
     ) -> str:
+        'Returns the HTML content of the page or selector when specified. This API can also "clean" HTML markup returned by specifying a "clean" argument with numerous options. Features of the "clean" argument include removal of non-text nodes, removal of DOM attributes, as well as removal of excessive whitespace and newlines. Using "clean" can save nearly 1,000 times the payload size. Useful for LLM\'s and other scenarios'
         args = None
         result = await self._execute(
             "html",
@@ -300,6 +320,7 @@ class PageGenerated:
         self,
         user_agent: str,
     ) -> UserAgentResponse:
+        "Sets the User-Agent string for the browser session"
         args = drop_unset(
             {
                 "userAgent": user_agent,
@@ -325,6 +346,7 @@ class PageGenerated:
         x: float | UnsetType = UNSET,
         y: float | UnsetType = UNSET,
     ) -> HoverResponse:
+        "Waits for the element to be visible, scrolls to it, then hover on it with native events"
         args = drop_unset(
             {
                 "selector": selector,
@@ -350,6 +372,7 @@ class PageGenerated:
         self,
         enabled: bool,
     ) -> JavaScriptResponse:
+        "Sets and gets JavaScript execution on the page\n\n**Note: changing this value won't affect scripts that have already been run. It will take full effect on the next navigation.**"
         args = drop_unset(
             {
                 "enabled": enabled,
@@ -386,6 +409,7 @@ class PageGenerated:
         fail_label: str | UnsetType = UNSET,
         requester_name: str | UnsetType = UNSET,
     ) -> LiveURLResponse:
+        "Returns a fully-qualified, user-shareable live-URL for streaming the web-browser to an end-user, optionally interactive.\n\n**Set 30 second timer for interaction**"
         args = drop_unset(
             {
                 "captureScale": capture_scale,
@@ -425,6 +449,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> list[MapSelectorResponse]:
+        'Specify a selector that returns multiple nodes in a document (similar to `document.querySelectorAll`), or JavaScript that returns a NodeList, and this API will respond with details about those DOM nodes. Similar to how "map" works in most functional programming languages and libraries. Useful for mapping over repetitive data in sites and pages like product listings or search results. This will automatically wait for the selector to be present on the page, and is configurable with the "wait" and "timeout" options.\n\nFor getting arbitrary DOM attributes back you can specify them via the `attribute(name: "data-custom-attribute")` property. This will return an object with `name` and `value` properties.\n\nYou may also continuously map further nested items as well, for instance this query might get all books on a page, and then a nested `mapSelector` call might list all sellers of that book, or shipping speeds. Hierarchy of data is preserved to pass through the hierarchical data modeled inside the DOM.\n\nThis API will always return a list of results back regardless if one or more items are found, or `null` if none are found.\n\nUsing aliases can also give the returned JSON more meaning and better model the data returned by this powerful API.'
         args = drop_unset(
             {
                 "selector": selector,
@@ -450,6 +475,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> list[MapSelectorResponse]:
+        "Return details (`innerHTML`, `innerText`, `id`, `class`) for every element matching `selector`. Unlike Playwright's `eval_on_selector_all`, this takes no page function: it is a shortcut for `map_selector(selector)`."
         args = drop_unset(
             {
                 "selector": selector,
@@ -496,6 +522,7 @@ class PageGenerated:
         transfer_mode: str | UnsetType = UNSET,
         path: str | UnsetType = UNSET,
     ) -> bytes:
+        "Generates a PDF of the page with the print CSS media type"
         args = drop_unset(
             {
                 "displayHeaderFooter": display_header_footer,
@@ -539,6 +566,7 @@ class PageGenerated:
         *,
         timeout: float | UnsetType = UNSET,
     ) -> DefaultResponse:
+        "Sets configuration for the entirety of the session, replacing defaults like the 30 second timeout default"
         args = drop_unset(
             {
                 "timeout": timeout,
@@ -569,6 +597,7 @@ class PageGenerated:
         type: list[ResourceType] | UnsetType = UNSET,
         url: list[str] | UnsetType = UNSET,
     ) -> ProxyResponse:
+        'Proxies requests, by a specified set of conditions, through either the Browserless residential proxy or through an external proxy. Only requests that match these conditions are proxied and the rest are sent from the instance\'s own IP address.\n\nUse the "server" argument to specify an external proxy for Browserless to use for requests. For requests with authentication, the username and password should be included in the URL using Basic Authentication. See the examples below for more information on how to format those URLs.\n\n**Using the browserless proxy for all requests and proxy through Brazil**'
         args = drop_unset(
             {
                 "network": network,
@@ -599,7 +628,9 @@ class PageGenerated:
         *,
         timeout: float | UnsetType = UNSET,
         visible: bool | UnsetType = UNSET,
+        html: bool | UnsetType = UNSET,
     ) -> ElementHandle | None:
+        "Return a handle for the first element matching `selector`, or `None`. The element's `innerHTML`/`outerHTML` are fetched only with `html=True`."
         args = drop_unset(
             {
                 "selector": selector,
@@ -612,6 +643,9 @@ class PageGenerated:
             args,
             "QuerySelectorResponse",
             timeout=None if timeout is UNSET else timeout,
+            opt_in=tuple(
+                group for group, enabled in (("html", html),) if enabled is True
+            ),
         )
         if result is None:
             return None
@@ -625,7 +659,9 @@ class PageGenerated:
         *,
         timeout: float | UnsetType = UNSET,
         visible: bool | UnsetType = UNSET,
+        html: bool | UnsetType = UNSET,
     ) -> list[ElementHandle]:
+        "Return handles for every element matching `selector`. The elements' `innerHTML`/`outerHTML` are fetched only with `html=True`."
         args = drop_unset(
             {
                 "selector": selector,
@@ -638,6 +674,9 @@ class PageGenerated:
             args,
             "QuerySelectorResponse",
             timeout=None if timeout is UNSET else timeout,
+            opt_in=tuple(
+                group for group, enabled in (("html", html),) if enabled is True
+            ),
         )
         if not results:
             return []
@@ -654,6 +693,7 @@ class PageGenerated:
         *,
         timeout: float | UnsetType = UNSET,
     ) -> ReconnectionResponse:
+        "Returns a payload with reconnection information in order to reconnect back to the same browser session"
         args = drop_unset(
             {
                 "timeout": timeout,
@@ -672,6 +712,7 @@ class PageGenerated:
     async def stop_session_recording(
         self,
     ) -> StopSessionRecordingResponse:
+        "Stops the current session recording and processes the replay data, similar to closing the context. This mutation will stop RRWeb recording and upload the collected events."
         args = None
         return cast(
             "StopSessionRecordingResponse",
@@ -692,6 +733,7 @@ class PageGenerated:
         url: list[str] | UnsetType = UNSET,
         regex: list[str] | UnsetType = UNSET,
     ) -> RejectResponse:
+        'Rejects requests by a specified URL pattern, method, or type and operator. You may supply a single pattern, or a list (array) of them. This mutation, by default, will reject any requests that match *any* pattern, which we call an "or" operator. To reject requests where conditions must all match, specify an "and" operator in the mutation. Note that this only has an effect when the query is executing, so scripts that return quickly will likely see assets loading in the editor as these rejections only happen when mutations are executing.\n___\n**Rejecting images or media**'
         args = drop_unset(
             {
                 "enabled": enabled,
@@ -717,6 +759,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait_until: WaitUntilHistory | UnsetType = UNSET,
     ) -> HTTPResponse | None:
+        "Reloads the given page with an optional waitUntil parameter and timeout parameter"
         args = drop_unset(
             {
                 "timeout": timeout,
@@ -743,6 +786,7 @@ class PageGenerated:
         wait: bool | UnsetType = UNSET,
         operator: OperatorType | UnsetType = UNSET,
     ) -> list[RequestResponse]:
+        'Returns request information made by the Browser with optional filters via arguments. You may filter the returned results by a glob-like URL-pattern, the method of the request or the type of request. Applying an operator to this will then change the behavior by either "and"ing the filters together or "or"ing them. This API will automatically wait for the request to be made if none is immediately found which you can turn off by disabling the "wait" option.\n\n**Getting all "Document" requests**'
         args = drop_unset(
             {
                 "type": type,
@@ -774,8 +818,10 @@ class PageGenerated:
         type: list[ResourceType] | UnsetType = UNSET,
         url: list[str] | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
+        body: bool | UnsetType = UNSET,
         body_encoding: bool | UnsetType = UNSET,
     ) -> list[ResponseResponse]:
+        'Returns response information, filtered by the provided arguments, made by the browser. You may optionally filter the returned results by a glob-like URL-pattern, the Method of the response or the Type of response. Applying an operator to this will then change the behavior by either "and"ing the filters together, or "or"ing them. This API will automatically wait for the response to be made if none is immediately found which you can turn off by disabling the "wait" option.\n\n**Getting all "Document" responses**'
         args = drop_unset(
             {
                 "status": status,
@@ -792,6 +838,14 @@ class PageGenerated:
             args,
             "ResponseResponse",
             timeout=None if timeout is UNSET else timeout,
+            opt_in=tuple(
+                group
+                for group, enabled in (
+                    ("body", body),
+                    ("bodyEncoding", body_encoding),
+                )
+                if enabled is True
+            ),
         )
         return cast(
             "list[ResponseResponse]",
@@ -814,6 +868,7 @@ class PageGenerated:
         wait_for_images: bool | UnsetType = UNSET,
         path: str | UnsetType = UNSET,
     ) -> bytes:
+        "Screenshots the page or a specific selector"
         args = drop_unset(
             {
                 "captureBeyondViewport": capture_beyond_viewport,
@@ -851,6 +906,7 @@ class PageGenerated:
         x: float | UnsetType = UNSET,
         y: float | UnsetType = UNSET,
     ) -> ScrollResponse:
+        "Waits for a selector, then scrolls to it on the page or an x,y coordinate in pixels"
         args = drop_unset(
             {
                 "selector": selector,
@@ -879,6 +935,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> CaptchaResponse:
+        "🚨 **EXPERIMENTAL** 🚨\nSolves a captcha or other challenge. Can auto-detect the CAPTCHA type or solve a specific type.\nUses the same detection logic as BaaS to automatically identify the CAPTCHA type\nand routes to the appropriate solver. Optionally accepts a specific type to solve."
         args = drop_unset(
             {
                 "type": type,
@@ -903,6 +960,7 @@ class PageGenerated:
         input_selector: str,
         timeout: float | UnsetType = UNSET,
     ) -> CaptchaResponse:
+        "Solves an image captcha using caller-provided selectors. Unlike solve, which auto-detects known captcha types, this mutation works on any site by accepting custom captchaSelector and inputSelector arguments. It detects the captcha image, solves it, and fills the result into the specified input field."
         args = drop_unset(
             {
                 "captchaSelector": captcha_selector,
@@ -928,6 +986,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         clean: CleanInput | UnsetType = UNSET,
     ) -> TextResponse:
+        "Returns the text content on the given page or by selector when specified"
         args = drop_unset(
             {
                 "timeout": timeout,
@@ -950,6 +1009,7 @@ class PageGenerated:
         self,
         selector: str,
     ) -> str:
+        "Return the text content of the first element matching `selector`. Unlike Playwright's `eval_on_selector`, this takes no page function: it is a shortcut for `text(selector=...)`."
         args = drop_unset(
             {
                 "selector": selector,
@@ -971,6 +1031,7 @@ class PageGenerated:
     async def title(
         self,
     ) -> str:
+        "Returns the title of the page that the browser is currently at"
         args = None
         result = await self._execute(
             "title",
@@ -997,6 +1058,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
     ) -> TypeResponse:
+        "Types text into an element by scrolling to it, clicking it, then emitting key events for every character. Include a `\\n` (or `\\r`) in `text` to send an Enter/Return key press — useful for submitting search boxes or forms without a separate click. BrowserQL has no standalone key-press mutation, so non-Enter keys cannot be simulated; use `click` for non-keyboard submit interactions (for example, a submit button)."
         args = drop_unset(
             {
                 "selector": selector,
@@ -1025,6 +1087,7 @@ class PageGenerated:
         *,
         selector: str | UnsetType = UNSET,
     ) -> LoadSecretResponse:
+        "Fills a credential resolved just-in-time from a configured 1Password\nintegration into a target input. The resolved value never appears in your\nquery or in the response. The session must be started with an integration\n(the `integrationId` connection parameter or session field), and the page's\norigin must be in the integration's allowed-domain list. Once any secret has\nbeen filled, capture and page-content readback are disabled for the rest of the\nsession — screenshots, PDFs, screencasts, Live URLs, session recording, and the\ncontent-return mutations (evaluate, html, text, querySelector, querySelectorAll,\ncookies)."
         args = drop_unset(
             {
                 "ref": ref,
@@ -1043,6 +1106,7 @@ class PageGenerated:
     async def url(
         self,
     ) -> str:
+        "Returns the URL of the page that the browser is currently at"
         args = None
         result = await self._execute(
             "url",
@@ -1063,6 +1127,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait_until: WaitUntilGoto | UnsetType = UNSET,
     ) -> HTTPResponse:
+        "Waits for a navigation even to fire, useful for clicking an element and waiting for a page load of some"
         args = drop_unset(
             {
                 "timeout": timeout,
@@ -1086,6 +1151,7 @@ class PageGenerated:
         concurrency: int | UnsetType = UNSET,
         timeout: float | UnsetType = UNSET,
     ) -> WaitForTimeoutResponse:
+        "Wait for the page to have no more than the configured number of in-flight network requests for a period of time."
         args = drop_unset(
             {
                 "idleTime": idle_time,
@@ -1111,6 +1177,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         hidden: bool | UnsetType = UNSET,
     ) -> WaitForSelectorResponse:
+        "Waits for a given selector to be present in the DOM, with optional visibility"
         args = drop_unset(
             {
                 "selector": selector,
@@ -1135,6 +1202,7 @@ class PageGenerated:
         *,
         timeout: float | UnsetType = UNSET,
     ) -> WaitForEvent:
+        "Waits for a named event to fire on the page's document or window."
         args = drop_unset(
             {
                 "event": event,
@@ -1180,6 +1248,7 @@ class PageGenerated:
         has_touch: bool | UnsetType = UNSET,
         landscape: bool | UnsetType = UNSET,
     ) -> ViewportResponse:
+        "Sets the viewport dimensions for the browser session"
         args = drop_unset(
             {
                 "width": width,
@@ -1208,6 +1277,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait_until: WaitUntilGoto | UnsetType = UNSET,
     ) -> SwitchWindowResponse:
+        "Switches context to a popup window matching specified criteria"
         args = drop_unset(
             {
                 "url": url,
@@ -1231,6 +1301,7 @@ class PageGenerated:
         self,
         type: MediaType,
     ) -> EmulateMediaTypeResponse:
+        'Emulates the given CSS media type for the page, mirroring the behavior of\nprinting ("print") or on-screen rendering ("screen"). Useful before a `pdf`\nor `screenshot` to control how the page renders.'
         args = drop_unset(
             {
                 "type": type,
@@ -1259,6 +1330,7 @@ class PageGenerated:
         base64_body: str | UnsetType = UNSET,
         headers: list[HeaderInput] | UnsetType = UNSET,
     ) -> FulfillResponse:
+        "Fulfills matching requests with a canned response instead of letting them hit\nthe network, mirroring the request-interceptor mocking used by the REST APIs.\nMatching follows the same glob-style URL/method/type conditions as `reject`."
         args = drop_unset(
             {
                 "url": url,
@@ -1289,6 +1361,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         visible: bool | UnsetType = UNSET,
     ) -> MarkdownResponse:
+        "Returns the page's content converted to Markdown. The HTML is fetched from\nthe page (optionally scoped to a selector) and converted server-side, with\nscript/style/noscript/iframe nodes stripped."
         args = drop_unset(
             {
                 "selector": selector,
@@ -1310,6 +1383,7 @@ class PageGenerated:
         self,
         live_url_id: str,
     ) -> CloseLiveURLResponse:
+        "Closes a Live URL created by this browser session."
         args = drop_unset(
             {
                 "liveURLId": live_url_id,

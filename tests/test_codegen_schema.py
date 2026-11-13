@@ -13,7 +13,7 @@ from scripts.codegen.config.methods import (  # noqa: E402
     PAGE_EXCLUDED,
     POSITIONAL_ARGS,
 )
-from scripts.codegen.config.schema_map import SCALAR_MAP  # noqa: E402
+from scripts.codegen.config.schema_map import OPTIONAL_FIELDS, SCALAR_MAP  # noqa: E402
 from scripts.codegen.model import build_models  # noqa: E402
 from scripts.codegen.schema import Schema  # noqa: E402
 
@@ -54,6 +54,11 @@ def test_client_only_parameters_have_no_wire_name() -> None:
     response = {param.py_name: param for param in models["response"].params}
     assert goto["remote_response_metadata"].gql_name is None
     assert response["body_encoding"].gql_name is None
+    assert response["body"].gql_name is None
+    for name in ("query_selector", "query_selector_all"):
+        assert (
+            next(p for p in models[name].params if p.py_name == "html").gql_name is None
+        )
 
 
 def test_stale_mutation_config_fails_loud() -> None:
@@ -82,3 +87,27 @@ def test_unmapped_custom_scalar_fails_loud() -> None:
             Schema.load(ROOT / "src/browserless_bap/mutations.graphql")
     finally:
         SCALAR_MAP["FloatOrString"] = previous
+
+
+@pytest.mark.parametrize(
+    ("type_name", "field", "message"),
+    [
+        ("MissingType", "body", "unknown type 'MissingType'"),
+        ("ResponseResponse", "missingField", "unknown field 'missingField'"),
+    ],
+)
+def test_invalid_optional_field_configuration_fails_loud(
+    type_name: str,
+    field: str,
+    message: str,
+) -> None:
+    previous = OPTIONAL_FIELDS.get(type_name)
+    OPTIONAL_FIELDS[type_name] = {"invalid": (field,)}
+    try:
+        with pytest.raises(ValueError, match=message):
+            Schema.load(ROOT / "src/browserless_bap/mutations.graphql")
+    finally:
+        if previous is None:
+            del OPTIONAL_FIELDS[type_name]
+        else:
+            OPTIONAL_FIELDS[type_name] = previous

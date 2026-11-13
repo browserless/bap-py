@@ -1,12 +1,12 @@
 import builtins
 
 from browserless_bap.errors import (
+    BAPConnectionError,
     BAPError,
+    BAPTimeoutError,
+    BAPValueError,
     BrowserQLError,
-    ConnectionError,
     SchemaMismatchError,
-    TimeoutError,
-    ValueError,
 )
 
 
@@ -16,10 +16,10 @@ def test_error_codes_and_context() -> None:
     assert bql.code == "BQL"
     assert bql.errors == [{"message": "first"}, {"message": "second"}]
 
-    connection = ConnectionError("closed")
+    connection = BAPConnectionError("closed")
     assert connection.code == "CONNECTION"
 
-    timeout = TimeoutError("mutation { goto }", 250)
+    timeout = BAPTimeoutError("mutation { goto }", 250)
     assert timeout.code == "TIMEOUT"
     assert timeout.operation == "mutation { goto }"
     assert timeout.timeout_ms == 250
@@ -29,16 +29,16 @@ def test_error_codes_and_context() -> None:
 
 
 def test_bap_value_error_is_native_value_error_too() -> None:
-    error = ValueError("invalid")
+    error = BAPValueError("invalid")
     assert isinstance(error, BAPError)
     assert isinstance(error, builtins.ValueError)
     assert error.code == "CLIENT"
 
 
 def test_transport_errors_are_native_errors_too() -> None:
-    assert isinstance(ConnectionError("closed"), builtins.ConnectionError)
+    assert isinstance(BAPConnectionError("closed"), builtins.ConnectionError)
     assert isinstance(
-        TimeoutError("mutation { goto }", 250),
+        BAPTimeoutError("mutation { goto }", 250),
         builtins.TimeoutError,
     )
 

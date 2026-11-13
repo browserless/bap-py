@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import keyword
 
+from .config.schema_map import RESPONSE_FIELD_TYPE_OVERRIDES
 from .schema import Schema
 from .writer import HEADER
 
@@ -32,7 +33,12 @@ def emit(schema: Schema) -> str:
             lines.append(f'    "{name}",')
             lines.append("    {")
             for field in fields:
-                annotation = _nullable(schema.python_type(field.type, response=True))
+                annotation = _nullable(
+                    RESPONSE_FIELD_TYPE_OVERRIDES.get(
+                        (gql_name, field.name.value),
+                        schema.python_type(field.type, response=True),
+                    )
+                )
                 lines.append(
                     f"        {json.dumps(field.name.value)}: "
                     f"{json.dumps(f'NotRequired[{annotation}]')},"
@@ -43,7 +49,12 @@ def emit(schema: Schema) -> str:
         if not fields:
             lines.append("    pass")
         for field in fields:
-            annotation = _nullable(schema.python_type(field.type, response=True))
+            annotation = _nullable(
+                RESPONSE_FIELD_TYPE_OVERRIDES.get(
+                    (gql_name, field.name.value),
+                    schema.python_type(field.type, response=True),
+                )
+            )
             lines.append(f"    {field.name.value}: NotRequired[{annotation}]")
         lines.extend(("", ""))
     return "\n".join(lines).rstrip()

@@ -45,6 +45,23 @@ Generated Page methods: `add_cookies`, `add_script_tag`, `add_style_tag`, `authe
 
 <!-- AUTOGEN:method-list END -->
 
+## Response keys and optional fields
+
+Options and keyword arguments use `snake_case`; returned dictionaries keep the
+server's field names (`liveURLId`, `httpOnly`, `childElementCount`), as Playwright
+for Python does for cookies.
+
+`query_selector()` and `query_selector_all()` fetch element HTML only with
+`html=True`, including element-scoped queries. Reading `inner_html` or
+`outer_html` without requesting it raises `BAPValueError` with a fix hint.
+`response()` omits bodies unless `body=True` or `body_encoding=True` (which implies
+the body and adds `base64Encoded`).
+
+`eval_on_selector()` returns text; `eval_on_selector_all()` returns element
+details. Unlike Playwright's methods, neither accepts a page function.
+SDK errors are `BAPTimeoutError`, `BAPConnectionError` and `BAPValueError`, still
+subclassing the matching builtins; the builtin-named SDK exports are removed.
+
 ## Live URL handoffs
 
 ```python
@@ -84,7 +101,7 @@ card, import `LiveURLInstructions` from `browserless_bap.types`.
 
 The SDK subscribes before minting and retains completion until the next mint,
 so a quick completion is not lost between `live_url()` and `wait_for_live_complete()`.
-Wait timeouts are in milliseconds and raise the SDK `TimeoutError`. By default
+Wait timeouts are in milliseconds and raise `BAPTimeoutError`. By default
 there is no client wait deadline; pass a positive timeout to bound the wait.
 `timeout=0` also disables the wait deadline. Timing out or cancelling a wait does
 not close the live URL.

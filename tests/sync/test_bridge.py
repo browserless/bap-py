@@ -9,6 +9,7 @@ import time
 import pytest
 
 import browserless_bap.sync_api._bridge as bridge_module
+from browserless_bap.errors import BAPTimeoutError
 from browserless_bap.sync_api._bridge import CallbackDispatcher, LoopThread
 
 
@@ -21,6 +22,42 @@ def test_run_returns_async_result() -> None:
     bridge = LoopThread()
     try:
         assert bridge.run(_value(42)) == 42
+    finally:
+        bridge.close()
+
+
+def test_bridge_deadline_raises_typed_timeout_and_cancels_work() -> None:
+    bridge = LoopThread()
+    cancelled = threading.Event()
+
+    async def pending() -> None:
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cancelled.set()
+
+    try:
+        with pytest.raises(BAPTimeoutError) as caught:
+            bridge.run(pending(), timeout=0.05)
+        assert caught.value.operation == "sync bridge"
+        assert caught.value.timeout_ms == 50
+        assert cancelled.wait(timeout=2)
+    finally:
+        bridge.close()
+
+
+@pytest.mark.parametrize("sdk_error", [False, True])
+def test_bridge_propagates_completed_timeout_without_retry(sdk_error: bool) -> None:
+    bridge = LoopThread()
+    error = BAPTimeoutError("remote", 123) if sdk_error else TimeoutError("user")
+
+    async def fail() -> None:
+        raise error
+
+    try:
+        with pytest.raises(type(error)) as caught:
+            bridge.run(fail(), timeout=1)
+        assert caught.value is error
     finally:
         bridge.close()
 

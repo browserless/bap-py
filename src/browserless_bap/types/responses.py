@@ -164,7 +164,7 @@ class ProxyResponse(TypedDict, total=False):
 
 
 class QuerySelectorResponse(TypedDict, total=False):
-    childElementCount: NotRequired[float | None]
+    childElementCount: NotRequired[int | None]
     className: NotRequired[str | None]
     id: NotRequired[str | None]
     innerHTML: NotRequired[str | None]

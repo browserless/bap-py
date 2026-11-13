@@ -19,6 +19,8 @@ from collections.abc import Awaitable, Callable, Coroutine
 from contextlib import suppress
 from typing import Protocol, TypeVar, cast
 
+from ..errors import BAPTimeoutError
+
 T = TypeVar("T")
 logger = logging.getLogger("browserless_bap")
 
@@ -247,8 +249,8 @@ class LoopThread:
                     remaining = deadline - time.monotonic()
                     if remaining <= 0:
                         future.cancel()
-                        raise TimeoutError(
-                            f"bap sync bridge timed out after {timeout} seconds"
+                        raise BAPTimeoutError(
+                            "sync bridge", cast(float, timeout) * 1000
                         )
                     wait_for = min(wait_for, remaining)
                 try:

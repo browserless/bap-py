@@ -176,6 +176,7 @@ class Page(PageGenerated, SyncBase[Any]):
         referrer_policy: str | UnsetType = UNSET,
         remote_response_metadata: bool | UnsetType = UNSET,
     ) -> HTTPResponse | None:
+        """Navigate to a URL with optional waitUntil and timeout parameters."""
         return cast(
             HTTPResponse | None,
             self._invoke(
@@ -200,8 +201,13 @@ class Page(PageGenerated, SyncBase[Any]):
         type: list[ResourceType] | UnsetType = UNSET,
         url: list[str] | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
+        body: bool | UnsetType = UNSET,
         body_encoding: bool | UnsetType = UNSET,
     ) -> list[ResponseResponse]:
+        """List responses; fetch bodies only with body=True.
+
+        body_encoding=True implies body=True and adds the base64Encoded flag.
+        """
         return cast(
             list[ResponseResponse],
             self._invoke(
@@ -213,6 +219,7 @@ class Page(PageGenerated, SyncBase[Any]):
                 type=type,
                 url=url,
                 wait=wait,
+                body=body,
                 body_encoding=body_encoding,
             ),
         )

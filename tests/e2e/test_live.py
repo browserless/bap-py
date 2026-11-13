@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from typing import Any, cast
 
 import pytest
 from pytest import CaptureFixture
@@ -37,8 +36,7 @@ async def run_async_happy_path(config: LiveConfig) -> None:
 
 
 def run_sync_happy_path(config: LiveConfig) -> None:
-    sync_browserless = cast(Any, bap_sync.Browserless)
-    with sync_browserless.connect(
+    with bap_sync.Browserless.connect(
         browser_ws_endpoint=config.url,
         token=config.token,
         timeout=config.timeout_ms,
@@ -74,8 +72,7 @@ def rejected_sync_connection(
     token: str | None,
     timeout_ms: float,
 ) -> None:
-    sync_browserless = cast(Any, bap_sync.Browserless)
-    with sync_browserless.connect(
+    with bap_sync.Browserless.connect(
         browser_ws_endpoint=url,
         token=token,
         timeout=timeout_ms,
@@ -185,7 +182,7 @@ def test_missing_and_invalid_auth_are_typed_and_redacted(
     capsys: CaptureFixture[str],
     token: str | None,
 ) -> None:
-    with pytest.raises(bap.ConnectionError) as async_error:
+    with pytest.raises(bap.BAPConnectionError) as async_error:
         asyncio.run(
             rejected_async_connection(
                 live_config.url,
@@ -193,7 +190,7 @@ def test_missing_and_invalid_auth_are_typed_and_redacted(
                 live_config.timeout_ms,
             )
         )
-    with pytest.raises(bap.ConnectionError) as sync_error:
+    with pytest.raises(bap.BAPConnectionError) as sync_error:
         rejected_sync_connection(
             live_config.url,
             token,
@@ -220,7 +217,7 @@ def test_malformed_endpoint_is_typed_and_redacted(
     capsys: CaptureFixture[str],
 ) -> None:
     malformed_url = f"http://bql.invalid/chromium/bql?token={MALFORMED_ENDPOINT_TOKEN}"
-    with pytest.raises(bap.ConnectionError) as async_error:
+    with pytest.raises(bap.BAPConnectionError) as async_error:
         asyncio.run(
             rejected_async_connection(
                 malformed_url,
@@ -228,7 +225,7 @@ def test_malformed_endpoint_is_typed_and_redacted(
                 live_config.timeout_ms,
             )
         )
-    with pytest.raises(bap.ConnectionError) as sync_error:
+    with pytest.raises(bap.BAPConnectionError) as sync_error:
         rejected_sync_connection(
             malformed_url,
             live_config.token,
@@ -246,3 +243,47 @@ def test_malformed_endpoint_is_typed_and_redacted(
     ]
     assert_secret_absent(live_config.token, values)
     assert_secret_absent(MALFORMED_ENDPOINT_TOKEN, values)
+
+
+@pytest.mark.e2e
+@pytest.mark.asyncio
+async def test_opt_in_fields_live(
+    live_config: LiveConfig,
+    capsys: CaptureFixture[str],
+) -> None:
+    async with bap.Browserless.connect(
+        browser_ws_endpoint=live_config.url,
+        token=live_config.token,
+        timeout=live_config.timeout_ms,
+    ) as browser:
+        async with browser.page() as page:
+            await page.goto(EXAMPLE_URL, timeout=live_config.timeout_ms)
+            responses = await page.response(type=["document"])
+            assert responses
+            assert all("body" not in item for item in responses)
+            with_bodies = await page.response(type=["document"], body=True)
+            assert any(
+                "Example Domain" in (item.get("body") or "") for item in with_bodies
+            )
+            await page.set_content('<h1 id="t">Hello <b>opt</b>-in</h1>')
+            plain = await page.query_selector("h1")
+            assert plain is not None
+            with pytest.raises(bap.BAPValueError, match="html=True"):
+                _ = plain.inner_html
+            assert plain.child_element_count == 1
+            assert isinstance(plain.child_element_count, int)
+            html = await page.query_selector("h1", html=True)
+            assert html is not None
+            assert html.inner_html == "Hello <b>opt</b>-in"
+            assert (html.outer_html or "").startswith("<h1")
+            child = await plain.query_selector(
+                "b", timeout=2000, visible=True, html=True
+            )
+            assert child is not None
+            assert child.inner_html == "opt"
+            children = await plain.query_selector_all(
+                "b", timeout=2000, visible=True, html=True
+            )
+            assert [item.outer_html for item in children] == ["<b>opt</b>"]
+    captured = capsys.readouterr()
+    assert_secret_absent(live_config.token, [captured.out, captured.err])

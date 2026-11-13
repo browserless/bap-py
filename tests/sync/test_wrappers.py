@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import gc
 import threading
+import time
 import weakref
 from collections.abc import Callable, Iterator
+from functools import partial
 from typing import Any, cast
 
 import pytest
@@ -574,6 +576,60 @@ def test_off_waits_for_once_dispatch_instead_of_racing() -> None:
         dispatcher._queue.join()
         assert delivered == ["x"]
     finally:
+        bridge.close()
+
+
+def test_new_page_prunes_closed_wrappers() -> None:
+    bridge = LoopThread()
+    browser = Browser(AsyncBrowser(), bridge)
+    references: list[weakref.ReferenceType[Page]] = []
+    try:
+        for _ in range(5):
+            page = browser.new_page()
+            references.append(weakref.ref(page))
+            page.close()
+        del page
+        current = browser.new_page()
+        gc.collect()
+        assert len(browser._pages) == 1
+        assert all(reference() is None for reference in references)
+        assert browser.get_pages() == [current]
+    finally:
+        browser.close()
+        bridge.close()
+
+
+@pytest.mark.parametrize("close_owner", ["browser", "bridge"])
+def test_close_shares_callback_worker_deadline(close_owner: str) -> None:
+    bridge = LoopThread()
+    browser = Browser(AsyncBrowser(), bridge)
+    bridge.track_browser(browser._impl)
+    release = threading.Event()
+    started = [threading.Event() for _ in range(4)]
+    workers: list[threading.Thread] = []
+
+    def busy(ready: threading.Event, _payload: object) -> None:
+        workers.append(threading.current_thread())
+        ready.set()
+        release.wait(timeout=15)
+
+    try:
+        for ready in started:
+            page = browser.new_page()
+            page.on("console", partial(busy, ready))
+            page.emit("console", "busy")
+        assert all(ready.wait(timeout=2) for ready in started)
+        before = time.monotonic()
+        {"browser": browser.close, "bridge": bridge.close}[close_owner]()
+        elapsed = time.monotonic() - before
+        assert elapsed < 3, f"closing four busy pages took {elapsed:.2f}s"
+    finally:
+        release.set()
+        for worker in workers:
+            worker.join(timeout=2)
+            assert not worker.is_alive()
+        if close_owner == "browser":
+            browser.close()
         bridge.close()
 
 

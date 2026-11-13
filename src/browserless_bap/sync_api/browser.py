@@ -8,7 +8,7 @@ from threading import Lock
 from typing import Any, Self
 
 from ._base import SyncBase
-from ._bridge import LoopThread
+from ._bridge import CallbackDispatcher, LoopThread
 from .page import Page
 
 
@@ -19,6 +19,7 @@ class Browser(SyncBase[Any]):
         self._pages_lock = Lock()
 
     def _wrap_page(self, impl: Any) -> Page:
+        self._prune_pages()
         with self._pages_lock:
             page = self._pages.get(id(impl))
             if page is None or page._impl is not impl:
@@ -28,13 +29,17 @@ class Browser(SyncBase[Any]):
     def new_page(self) -> Page:
         return self._wrap_page(self._invoke("new_page"))
 
-    def get_pages(self) -> list[Page]:
+    def _prune_pages(self) -> None:
         with self._pages_lock:
             stale = [page for page in self._pages.values() if page.closed]
             for page in stale:
                 del self._pages[id(page._impl)]
-        for page in stale:
-            page._close_dispatcher()
+        CallbackDispatcher.close_all(
+            page._close_dispatcher(wait=False) for page in stale
+        )
+
+    def get_pages(self) -> list[Page]:
+        self._prune_pages()
         impls = self._invoke("get_pages")
         return [self._wrap_page(impl) for impl in impls]
 
@@ -63,8 +68,9 @@ class Browser(SyncBase[Any]):
             with self._pages_lock:
                 pages = list(self._pages.values())
                 self._pages.clear()
-            for page in pages:
-                page._close_dispatcher()
+            CallbackDispatcher.close_all(
+                page._close_dispatcher(wait=False) for page in pages
+            )
             self._bridge.untrack_browser(self._impl)
 
     def __enter__(self) -> Self:

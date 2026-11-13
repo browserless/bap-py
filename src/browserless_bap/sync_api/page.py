@@ -397,12 +397,13 @@ class Page(PageGenerated, SyncBase[Any]):
                 self._event_wrappers.clear()
             self._close_dispatcher()
 
-    def _close_dispatcher(self) -> None:
+    def _close_dispatcher(self, *, wait: bool = True) -> CallbackDispatcher | None:
         with self._listeners_lock:
             dispatcher, self._dispatcher = self._dispatcher, None
             self._dispatcher_closed = True
         if dispatcher is not None:
-            dispatcher.close()
+            dispatcher.close(wait=wait)
+        return dispatcher
 
     def __enter__(self) -> Self:
         return self

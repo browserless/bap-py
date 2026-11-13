@@ -16,7 +16,7 @@ import threading
 import time
 import warnings
 import weakref
-from collections.abc import Awaitable, Callable, Coroutine
+from collections.abc import Awaitable, Callable, Coroutine, Iterable
 from contextlib import suppress
 from typing import Protocol, TypeVar, cast
 
@@ -117,7 +117,7 @@ class CallbackDispatcher:
             finally:
                 self._queue.task_done()
 
-    def close(self) -> None:
+    def close(self, *, wait: bool = True) -> None:
         if self._closed.is_set():
             return
         self._closed.set()
@@ -135,8 +135,18 @@ class CallbackDispatcher:
                 self._queue.put_nowait(None)
             except queue.Full:
                 return
-        if threading.current_thread() is not self._thread:
+        if wait and threading.current_thread() is not self._thread:
             self._thread.join(timeout=2)
+
+    @staticmethod
+    def close_all(dispatchers: Iterable[CallbackDispatcher | None]) -> None:
+        workers = tuple(worker for worker in dispatchers if worker is not None)
+        deadline = time.monotonic() + 2
+        for worker in workers:
+            worker.close(wait=False)
+        for worker in workers:
+            if threading.current_thread() is not worker._thread:
+                worker._thread.join(timeout=max(0, deadline - time.monotonic()))
 
 
 class LoopThread:
@@ -305,8 +315,7 @@ class LoopThread:
         if self._closed.is_set():
             with self._tracked_lock:
                 dispatchers = tuple(self._dispatchers)
-            for dispatcher in dispatchers:
-                dispatcher.close()
+            CallbackDispatcher.close_all(dispatchers)
             return
         if self._stopping:
             return
@@ -320,8 +329,7 @@ class LoopThread:
                 self.run(self._close_tracked_browsers(), timeout=5)
         with self._tracked_lock:
             dispatchers = tuple(self._dispatchers)
-        for dispatcher in dispatchers:
-            dispatcher.close()
+        CallbackDispatcher.close_all(dispatchers)
         loop = self._loop
         if loop is not None and loop.is_running():
             loop.call_soon_threadsafe(loop.stop)

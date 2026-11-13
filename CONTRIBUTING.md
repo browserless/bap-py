@@ -89,6 +89,25 @@ with `python scripts/docs.py --output <directory>`, which writes Docusaurus
 - Include tests for behavior changes.
 - Do not publish packages or create release tags from a pull request branch.
 
+## Releases
+
+Releases are automated with [release-please](https://github.com/googleapis/release-please).
+Pull requests are squash-merged, so each PR title becomes one commit on `main`, and its
+Conventional Commits type decides the next version and the changelog entry:
+
+- `fix:` → patch release, listed under "Bug Fixes".
+- `feat:` → minor release, listed under "Features".
+- `feat!:`, or a `BREAKING CHANGE:` footer → while the version is `0.x`, a minor
+  release; from `1.0.0`, a major one.
+- `docs:`, `test:`, `ci:`, `build:`, `chore:`, `refactor:`, `style:` → no release on
+  their own and hidden from the changelog.
+
+release-please keeps one draft release pull request open against `main` with the next
+version and changelog. A maintainer marks it ready and merges it; that creates the
+GitHub Release and the `vX.Y.Z` tag, which runs `publish.yml` to upload to PyPI after a
+maintainer approves the `pypi` deployment. Do not edit `_version.py`,
+`.release-please-manifest.json` or `CHANGELOG.md` by hand.
+
 ## Public repository rules
 
 PR titles, descriptions, commit messages and review comments must not contain

@@ -639,11 +639,14 @@ class PageGenerated:
             "QuerySelectorResponse",
             timeout=None if timeout is UNSET else timeout,
         )
-        from .element_handle import ElementHandle, _selector_at
+        if not results:
+            return []
+        from .element_handle import ElementHandle, _selector_expression
 
+        expression = _selector_expression(selector, all_matches=True)
         return [
-            ElementHandle(cast("Page", self), _selector_at(selector, index), item)
-            for index, item in enumerate(results or ())
+            ElementHandle(cast("Page", self), f"({expression})[{index}]", item)
+            for index, item in enumerate(results)
         ]
 
     async def reconnect(

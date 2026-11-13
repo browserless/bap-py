@@ -97,6 +97,66 @@ def test_async_then_sync_happy_paths(
 
 
 @pytest.mark.e2e
+async def test_element_handle_scoping_and_selector_encoding(
+    live_config: LiveConfig,
+) -> None:
+    async with bap.Browserless.connect(
+        browser_ws_endpoint=live_config.url,
+        token=live_config.token,
+        timeout=live_config.timeout_ms,
+    ) as browser:
+        async with browser.page() as page:
+            await page.set_content(
+                '<ul id="list"><li>a</li><li>b</li><li>c</li></ul>'
+                '<div id="box"><span data-q=\'a"b\'>QUOTE</span>'
+                "<span id=\"a:b\">COLON</span><span data-q='x\\y'>BSLATTR</span>"
+                '<span class="n">NEWLINE</span><span class="plain">PLAIN</span></div>'
+                "<span data-q='a\"b'>OUTSIDE</span>"
+            )
+            ul = await page.query_selector("ul")
+            assert ul is not None
+            assert [
+                await li.text_content() for li in await ul.query_selector_all("li")
+            ] == ["a", "b", "c"]
+            indexed_ul = (await page.query_selector_all("ul"))[0]
+            assert [
+                await li.text_content()
+                for li in await indexed_ul.query_selector_all("li")
+            ] == ["a", "b", "c"]
+            first = await indexed_ul.query_selector("li")
+            assert first is not None
+            assert await first.text_content() == "a"
+            body = await page.query_selector("body")
+            assert body is not None
+            nested_ul = (await body.query_selector_all("ul"))[0]
+            items = await nested_ul.query_selector_all("li")
+            assert [await li.text_content() for li in items] == ["a", "b", "c"]
+            assert await items[1].click() is not None
+
+            box = await page.query_selector("#box")
+            assert box is not None
+            for selector, expected in [
+                ("[data-q='a\"b']", "QUOTE"),
+                ("#a\\:b", "COLON"),
+                ('[data-q="x\\\\y"]', "BSLATTR"),
+                (".n,\n.nomatch", "NEWLINE"),
+                ("span.plain", "PLAIN"),
+            ]:
+                match = await box.query_selector(selector)
+                assert match is not None
+                assert await match.text_content() == expected
+                matches = await box.query_selector_all(selector)
+                assert [await match.text_content() for match in matches] == [expected]
+            quotes = await page.query_selector_all("[data-q='a\"b']")
+            assert len(quotes) == 2
+            assert await quotes[0].text_content() == "QUOTE"
+            visible = await ul.query_selector_all("li", timeout=5000, visible=True)
+            assert [await li.text_content() for li in visible] == ["a", "b", "c"]
+            assert await ul.query_selector("p") is None
+            assert await ul.query_selector_all("p") == []
+
+
+@pytest.mark.e2e
 @pytest.mark.parametrize("token", [None, INVALID_TOKEN], ids=["missing", "invalid"])
 def test_missing_and_invalid_auth_are_typed_and_redacted(
     live_config: LiveConfig,

@@ -296,3 +296,5 @@ callbacks; beyond that it drops the newest callback with a logged warning.
 A `once` listener stays registered until one event is actually queued.
 `browser.get_pages()` returns the same page objects, so `off()` works through any
 reference to that page.
+Register listeners before closing the page or browser; registering on a closed
+object does not restart callback delivery.

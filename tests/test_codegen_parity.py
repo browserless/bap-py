@@ -11,7 +11,11 @@ from graphql import FieldNode, OperationDefinitionNode, SelectionSetNode, parse
 
 import browserless_bap as bap
 import browserless_bap.sync_api
-from browserless_bap.graphql.mutations import ARG_TYPES, RESPONSE_FIELDS
+from browserless_bap.graphql.mutations import (
+    ARG_TYPES,
+    OPTIONAL_FIELDS,
+    RESPONSE_FIELDS,
+)
 from browserless_bap.transport import MessageListener, Transport
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,46 +28,10 @@ from scripts.codegen.model import build_models  # noqa: E402
 from scripts.codegen.schema import Schema  # noqa: E402
 
 SNAPSHOT = json.loads((ROOT / "tests/fixtures/bap_ts_parity.json").read_text())
-PY_VARIANT_OF = {
-    "HTTPResponseWithRemoteMetadata": "HTTPResponse",
-    "ResponseResponseWithBodyEncoding": "ResponseResponse",
-}
 # Fields Python still fetches by default; remove entries when they become opt-in.
-KNOWN_DEFAULT_SELECTION_GAPS = {
-    "QuerySelectorResponse": {"innerHTML", "outerHTML"},
-    "ResponseResponse": {"body"},
-}
+KNOWN_DEFAULT_SELECTION_GAPS: dict[str, set[str]] = {}
 # These lack bap-ts's 5-second headroom; remove each entry as it gains it.
-KNOWN_TIMEOUT_GAPS = {
-    "back",
-    "checkbox",
-    "click",
-    "content",
-    "evaluate",
-    "forward",
-    "goto",
-    "hover",
-    "html",
-    "mapSelector",
-    "markdown",
-    "preferences",
-    "querySelector",
-    "querySelectorAll",
-    "reconnect",
-    "reload",
-    "request",
-    "response",
-    "scroll",
-    "solve",
-    "solveImageCaptcha",
-    "switchToWindow",
-    "text",
-    "type",
-    "waitForNavigation",
-    "waitForNetworkIdle",
-    "waitForRequest",
-    "waitForSelector",
-}
+KNOWN_TIMEOUT_GAPS: set[str] = set()
 TIMEOUT_NOT_MEASURED = {
     "liveURL": "needs the completion subscription; covered by the live-URL tests",
 }
@@ -152,12 +120,11 @@ def selection_paths(fields: str) -> set[str]:
 
 
 def test_response_fields_match_bap_ts() -> None:
-    assert set(RESPONSE_FIELDS) - set(PY_VARIANT_OF) == set(SNAPSHOT["response_fields"])
+    assert set(RESPONSE_FIELDS) == set(SNAPSHOT["response_fields"])
     for name, fields in SNAPSHOT["response_fields"].items():
         python = selection_paths(RESPONSE_FIELDS[name])
-        for variant, base in PY_VARIANT_OF.items():
-            if base == name:
-                python |= selection_paths(RESPONSE_FIELDS[variant])
+        for group in OPTIONAL_FIELDS.get(name, {}).values():
+            python |= selection_paths(group)
         typescript = selection_paths(fields)
         for group in SNAPSHOT["optional_fields"].get(name, {}).values():
             typescript |= selection_paths(group)

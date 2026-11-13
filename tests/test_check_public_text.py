@@ -97,6 +97,19 @@ def test_other_review_bot_links_still_fail(capsys: pytest.CaptureFixture[str]) -
     assert "PR body contains internal references: devin.ai" in (capsys.readouterr().out)
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        "https://app.devin.ai/review/browserless/bap-py/pull/3?next=https://linear.app/x",
+        "https://app.devin.ai/review/browserless/bap-py/pull/3/../../sessions/abc",
+        "https://app.devin.ai/review/ABC-1303",
+        "https://static.devin.ai/assets/ABC-1303.svg",
+    ],
+)
+def test_badge_exemption_cannot_hide_other_text(body: str) -> None:
+    assert check_public_text.main({"PR_TITLE": "docs: fix typo", "PR_BODY": body}) == 1
+
+
 def test_dependabot_body_is_not_checked(capsys: pytest.CaptureFixture[str]) -> None:
     result = check_public_text.main(
         {

@@ -17,11 +17,13 @@ INTERNAL_HOST = re.compile(
     r"linear\.app\b|ampcode\.com/threads|slack\.com|devin\.ai|usepylon\.com",
     re.IGNORECASE,
 )
-# The code review bot adds a badge to every PR description. Its public review and
-# asset links are allowed; any other link to that host (such as a session) is not.
+# The code review bot adds a badge to every PR description. Only the badge's exact
+# review link and image URLs are exempt; anything else on that host still fails,
+# and nothing may follow them (no query strings or extra path segments).
 PUBLIC_BOT_LINK = re.compile(
-    r"https://(?:app\.devin\.ai/review|static\.devin\.ai/assets)/[^\s\"'<>)]*",
-    re.IGNORECASE,
+    r"https://app\.devin\.ai/review/browserless/bap-py/pull/\d+(?![\w/.?#&=%-])"
+    r"|https://static\.devin\.ai/assets/gh-devin-review-(?:dark|light)\.svg"
+    r"(?:\?v=\d+)?(?![\w/.?#&=%-])"
 )
 TITLE_ONLY_AUTHORS: frozenset[str] = frozenset({"dependabot[bot]"})
 

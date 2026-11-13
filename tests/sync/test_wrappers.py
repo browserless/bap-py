@@ -21,6 +21,7 @@ class AsyncPage:
         self.closed = False
         self.listeners: dict[str, list[Callable[[object], object]]] = {}
         self.thread_names: list[str] = []
+        self.query_options: dict[str, object] = {}
 
     async def goto(self, url: str, **options: object) -> dict[str, object]:
         self.thread_names.append(threading.current_thread().name)
@@ -30,8 +31,9 @@ class AsyncPage:
         return "Example Domain"
 
     async def query_selector(
-        self, selector: str, **_options: object
+        self, selector: str, **options: object
     ) -> AsyncElementHandle:
+        self.query_options = options
         return AsyncElementHandle(
             cast(Any, self),
             selector,
@@ -47,9 +49,9 @@ class AsyncPage:
         )
 
     async def query_selector_all(
-        self, selector: str, **_options: object
+        self, selector: str, **options: object
     ) -> list[AsyncElementHandle]:
-        return [await self.query_selector(selector)]
+        return [await self.query_selector(selector, **options)]
 
     async def eval_on_selector(self, selector: str) -> str:
         return "current child"
@@ -125,8 +127,10 @@ def test_page_calls_run_on_bridge_and_wrap_handles() -> None:
         assert isinstance(handle, ElementHandle)
         assert handle.inner_text == "child"
         assert handle.text_content() == "current child"
-        assert isinstance(handle.query_selector("span"), ElementHandle)
-        assert len(handle.query_selector_all("span")) == 1
+        assert isinstance(handle.query_selector("span", timeout=5), ElementHandle)
+        assert impl.query_options == {"timeout": 5}
+        assert len(handle.query_selector_all("span", visible=True)) == 1
+        assert impl.query_options == {"visible": True}
         assert len(page.query_selector_all(".item")) == 1
     finally:
         bridge.close()

@@ -30,7 +30,7 @@ All timeout values are milliseconds; the default per-step `timeout` is `30000`.
 Mutations with server-side timeouts get `5000` ms of client headroom once.
 `connect_timeout` defaults to `timeout`, bounds the entire WebSocket dial
 (including setup and handshake), and is disabled by values of `0` or less.
-Connection timeouts raise the SDK's `browserless_bap.TimeoutError` with
+Connection timeouts raise the SDK's `browserless_bap.BAPTimeoutError` with
 `operation == "connect"`.
 
 A connect deadline expiring is terminal for that page's connection; create a

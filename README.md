@@ -80,7 +80,7 @@ once, allowing the server to return its timeout response before the client deadl
 
 `connect_timeout` defaults to `timeout` and bounds the entire WebSocket dial,
 including connection setup and handshake. A value of `0` or less disables that
-connection deadline. Connection timeouts raise the SDK's `browserless_bap.TimeoutError`
+connection deadline. Connection timeouts raise the SDK's `browserless_bap.BAPTimeoutError`
 with `operation == "connect"`.
 
 A connect deadline expiring is terminal for that page's connection. To retry,

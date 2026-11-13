@@ -287,3 +287,14 @@ resuming handoffs. Handoffs remain unavailable during this cutover. To roll back
 pause and drain again and restore both the previous server and previous clients;
 rolling back only one side leaves an incompatible pair. No mixed-version
 compatibility path is provided by this SDK.
+
+## Sync API events
+
+Callbacks run on a background thread per page, in event order for that page.
+A slow callback delays only its own page. Each page buffers up to 1,024 pending
+callbacks; beyond that it drops the newest callback with a logged warning.
+A `once` listener stays registered until one event is actually queued.
+`browser.get_pages()` returns the same page objects, so `off()` works through any
+reference to that page.
+Register listeners before closing the page or browser; registering on a closed
+object does not restart callback delivery.

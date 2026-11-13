@@ -4,6 +4,7 @@ from hashlib import sha256
 from importlib.metadata import version
 from pathlib import Path
 
+import pytest
 from graphql import parse
 
 import browserless_bap as bap
@@ -15,6 +16,10 @@ def test_version_matches_metadata_and_release_manifest() -> None:
     manifest = json.loads((root / ".release-please-manifest.json").read_text())
     assert bap.__version__ == version("browserless-bap")
     assert manifest["."] == bap.__version__
+
+
+def test_pytest_asyncio_loop_scope_is_pinned(pytestconfig: pytest.Config) -> None:
+    assert pytestconfig.getini("asyncio_default_fixture_loop_scope") == "function"
 
 
 def test_vendored_schema_is_locked_but_not_public() -> None:

@@ -86,6 +86,14 @@ Ruff has a minimum version rather than an exact pin; use the same version when
 comparing generated output across environments, and run the formatting and
 codegen drift checks above before submitting changes.
 
+Refresh the offline parity snapshot from the same published package version as
+the schema, and commit `tests/fixtures/bap_ts_parity.json` with the schema:
+
+```bash
+npm pack @browserless.io/bap-ts@<version>
+python scripts/bap_ts_parity.py --package browserless.io-bap-ts-<version>.tgz
+```
+
 ## API reference
 
 The generated Python API reference is published at

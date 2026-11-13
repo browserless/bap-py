@@ -15,7 +15,8 @@ import queue
 import threading
 import time
 import warnings
-from collections.abc import Awaitable, Callable, Coroutine
+import weakref
+from collections.abc import Awaitable, Callable, Coroutine, Iterable
 from contextlib import suppress
 from typing import Protocol, TypeVar, cast
 
@@ -116,7 +117,7 @@ class CallbackDispatcher:
             finally:
                 self._queue.task_done()
 
-    def close(self) -> None:
+    def close(self, *, wait: bool = True) -> None:
         if self._closed.is_set():
             return
         self._closed.set()
@@ -134,8 +135,18 @@ class CallbackDispatcher:
                 self._queue.put_nowait(None)
             except queue.Full:
                 return
-        if threading.current_thread() is not self._thread:
+        if wait and threading.current_thread() is not self._thread:
             self._thread.join(timeout=2)
+
+    @staticmethod
+    def close_all(dispatchers: Iterable[CallbackDispatcher | None]) -> None:
+        workers = tuple(worker for worker in dispatchers if worker is not None)
+        deadline = time.monotonic() + 2
+        for worker in workers:
+            worker.close(wait=False)
+        for worker in workers:
+            if threading.current_thread() is not worker._thread:
+                worker._thread.join(timeout=max(0, deadline - time.monotonic()))
 
 
 class LoopThread:
@@ -152,21 +163,25 @@ class LoopThread:
         self._pending: set[cf.Future[object]] = set()
         self._tracked_lock = threading.Lock()
         self._tracked_browsers: dict[int, object] = {}
+        self._dispatchers: weakref.WeakSet[CallbackDispatcher] = weakref.WeakSet()
         self._thread = threading.Thread(
             target=self._thread_main,
             name="bap-sync-loop",
             daemon=True,
         )
-        self._dispatcher = CallbackDispatcher()
         self._thread.start()
         if not self._ready.wait(timeout=5):
             raise RuntimeError("bap sync event loop failed to start")
         if self._loop is None:
             raise RuntimeError("bap sync event loop failed during startup")
 
-    @property
-    def dispatcher(self) -> CallbackDispatcher:
-        return self._dispatcher
+    def new_dispatcher(self, *, max_queue_size: int = 1024) -> CallbackDispatcher:
+        with self._tracked_lock:
+            if self._stopping or self._closed.is_set():
+                raise RuntimeError("the bap sync event loop is shutting down")
+            dispatcher = CallbackDispatcher(max_queue_size=max_queue_size)
+            self._dispatchers.add(dispatcher)
+        return dispatcher
 
     def _thread_main(self) -> None:
         loop = asyncio.new_event_loop()
@@ -300,11 +315,14 @@ class LoopThread:
 
     def close(self) -> None:
         if self._closed.is_set():
-            self._dispatcher.close()
+            with self._tracked_lock:
+                dispatchers = tuple(self._dispatchers)
+            CallbackDispatcher.close_all(dispatchers)
             return
-        if self._stopping:
-            return
-        self._stopping = True
+        with self._tracked_lock:
+            if self._stopping:
+                return
+            self._stopping = True
         if (
             threading.current_thread() is not self._thread
             and self._loop is not None
@@ -312,7 +330,9 @@ class LoopThread:
         ):
             with suppress(BaseException):
                 self.run(self._close_tracked_browsers(), timeout=5)
-        self._dispatcher.close()
+        with self._tracked_lock:
+            dispatchers = tuple(self._dispatchers)
+        CallbackDispatcher.close_all(dispatchers)
         loop = self._loop
         if loop is not None and loop.is_running():
             loop.call_soon_threadsafe(loop.stop)

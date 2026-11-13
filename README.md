@@ -215,9 +215,9 @@ replacement’s completion on the same ordered subscription stream.
 
 Live URL handoffs need a Browserless server that supports
 `wait_for_live_complete()` (the `liveComplete` event), `close_live_url()` and
-instruction cards. This client always sends live URL instructions in the newer
-format, which older servers reject even when the instructions are a plain
-string, and older clients send a format that newer servers reject. Upgrading is
+instruction cards. When a live URL call passes `instructions`, this client sends
+them in the newer format, which older servers reject even for a plain string.
+Older clients send a format that newer servers reject. Upgrading is
 therefore a coordinated client/server cutover, not a rolling server-first
 upgrade.
 

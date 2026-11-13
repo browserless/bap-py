@@ -599,6 +599,51 @@ def test_new_page_prunes_closed_wrappers() -> None:
         bridge.close()
 
 
+@pytest.mark.parametrize("during_close", [False, True])
+def test_listener_registration_cannot_start_worker_after_shutdown(
+    during_close: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from browserless_bap.sync_api._bridge import CallbackDispatcher
+
+    bridge = LoopThread()
+    page = Page(AsyncPage(), bridge)
+    snapshot, resume = threading.Event(), threading.Event()
+    close_all = CallbackDispatcher.close_all
+
+    def paused_close(dispatchers: Any) -> None:
+        snapshot.set()
+        assert resume.wait(timeout=5)
+        close_all(dispatchers)
+
+    closer = threading.Thread(target=bridge.close)
+    try:
+        if during_close:
+            monkeypatch.setattr(CallbackDispatcher, "close_all", paused_close)
+            closer.start()
+            assert snapshot.wait(timeout=2)
+        else:
+            bridge.close()
+        workers = {
+            thread
+            for thread in threading.enumerate()
+            if thread.name == "bap-sync-events"
+        }
+        with pytest.raises(RuntimeError):
+            page.on("console", lambda _payload: None)
+        assert {
+            thread
+            for thread in threading.enumerate()
+            if thread.name == "bap-sync-events"
+        } == workers
+    finally:
+        resume.set()
+        if during_close:
+            closer.join(timeout=5)
+            assert not closer.is_alive()
+        page._close_dispatcher()
+        bridge.close()
+
+
 @pytest.mark.parametrize("close_owner", ["browser", "bridge"])
 def test_close_shares_callback_worker_deadline(close_owner: str) -> None:
     bridge = LoopThread()

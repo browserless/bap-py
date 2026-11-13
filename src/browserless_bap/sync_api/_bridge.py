@@ -176,8 +176,10 @@ class LoopThread:
             raise RuntimeError("bap sync event loop failed during startup")
 
     def new_dispatcher(self, *, max_queue_size: int = 1024) -> CallbackDispatcher:
-        dispatcher = CallbackDispatcher(max_queue_size=max_queue_size)
         with self._tracked_lock:
+            if self._stopping or self._closed.is_set():
+                raise RuntimeError("the bap sync event loop is shutting down")
+            dispatcher = CallbackDispatcher(max_queue_size=max_queue_size)
             self._dispatchers.add(dispatcher)
         return dispatcher
 
@@ -317,9 +319,10 @@ class LoopThread:
                 dispatchers = tuple(self._dispatchers)
             CallbackDispatcher.close_all(dispatchers)
             return
-        if self._stopping:
-            return
-        self._stopping = True
+        with self._tracked_lock:
+            if self._stopping:
+                return
+            self._stopping = True
         if (
             threading.current_thread() is not self._thread
             and self._loop is not None

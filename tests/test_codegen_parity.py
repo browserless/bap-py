@@ -7,6 +7,8 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, cast
 
+from graphql import FieldNode, OperationDefinitionNode, SelectionSetNode, parse
+
 import browserless_bap as bap
 import browserless_bap.sync_api
 from browserless_bap.graphql.mutations import ARG_TYPES, RESPONSE_FIELDS
@@ -133,27 +135,42 @@ def test_arg_types_match_bap_ts() -> None:
     ]
 
 
-def tokens(fields: str) -> set[str]:
-    return set(fields.split())
+def selection_paths(fields: str) -> set[str]:
+    def paths(selections: SelectionSetNode, prefix: str = "") -> set[str]:
+        result = set()
+        for field in selections.selections:
+            assert isinstance(field, FieldNode)
+            path = prefix + field.name.value
+            result.add(path)
+            if field.selection_set is not None:
+                result |= paths(field.selection_set, path + ".")
+        return result
+
+    operation = parse("{" + fields + "}").definitions[0]
+    assert isinstance(operation, OperationDefinitionNode)
+    return paths(operation.selection_set)
 
 
 def test_response_fields_match_bap_ts() -> None:
     assert set(RESPONSE_FIELDS) - set(PY_VARIANT_OF) == set(SNAPSHOT["response_fields"])
     for name, fields in SNAPSHOT["response_fields"].items():
-        python = tokens(RESPONSE_FIELDS[name])
+        python = selection_paths(RESPONSE_FIELDS[name])
         for variant, base in PY_VARIANT_OF.items():
             if base == name:
-                python |= tokens(RESPONSE_FIELDS[variant])
-        typescript = tokens(fields)
+                python |= selection_paths(RESPONSE_FIELDS[variant])
+        typescript = selection_paths(fields)
         for group in SNAPSHOT["optional_fields"].get(name, {}).values():
-            typescript |= tokens(group)
+            typescript |= selection_paths(group)
         assert python == typescript, name
 
 
 def test_default_selection_gaps_are_exactly_known() -> None:
     actual = {}
     for name, fields in SNAPSHOT["response_fields"].items():
-        python, typescript = tokens(RESPONSE_FIELDS[name]), tokens(fields)
+        python, typescript = (
+            selection_paths(RESPONSE_FIELDS[name]),
+            selection_paths(fields),
+        )
         assert not typescript - python, name
         if python - typescript:
             actual[name] = python - typescript
@@ -206,7 +223,9 @@ async def test_timeout_cushion_matches_bap_ts() -> None:
                 raise AssertionError(f"{mutation} did not reach Transport.send")
         finally:
             await page.close()
-        assert transport.deadline is not None, mutation
+        assert transport.deadline == (
+            1000 if mutation in KNOWN_TIMEOUT_GAPS else 6000
+        ), mutation
         if transport.deadline != 6000:
             gaps.add(mutation)
     assert gaps == KNOWN_TIMEOUT_GAPS

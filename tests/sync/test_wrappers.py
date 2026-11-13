@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import threading
+import weakref
 from collections.abc import Callable, Iterator
 from typing import Any, cast
 
@@ -460,6 +462,75 @@ def test_get_pages_returns_same_page_and_off_works_through_it() -> None:
         assert page._impl.listeners["console"] == []
         page.close()
         assert browser.get_pages() == []
+    finally:
+        browser.close()
+        bridge.close()
+
+
+def test_get_pages_preserves_page_created_after_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bridge = LoopThread()
+    browser = Browser(AsyncBrowser(), bridge)
+    snapshot, resume = threading.Event(), threading.Event()
+    invoke = browser._invoke
+    listings: list[list[Page]] = []
+
+    def paused_invoke(method: str, *args: object, **kwargs: object) -> Any:
+        result = invoke(method, *args, **kwargs)
+        if method == "get_pages" and not snapshot.is_set():
+            snapshot.set()
+            assert resume.wait(timeout=2)
+        return result
+
+    monkeypatch.setattr(browser, "_invoke", paused_invoke)
+    reader = threading.Thread(target=lambda: listings.append(browser.get_pages()))
+    try:
+        reader.start()
+        assert snapshot.wait(timeout=2)
+        page = browser.new_page()
+        page.on("console", callback := lambda _payload: None)
+        resume.set()
+        reader.join(timeout=2)
+        assert not reader.is_alive()
+        assert listings == [[]]
+        assert browser.get_pages() == [page]
+        browser.get_pages()[0].off("console", callback)
+        assert page._impl.listeners["console"] == []
+        dispatcher = page._dispatcher
+        assert dispatcher is not None
+        browser.close()
+        dispatcher._thread.join(timeout=2)
+        assert not dispatcher._thread.is_alive()
+    finally:
+        resume.set()
+        reader.join(timeout=2)
+        browser.close()
+        bridge.close()
+
+
+@pytest.mark.parametrize("close_error", [False, True])
+def test_page_context_releases_closed_wrapper(
+    close_error: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bridge = LoopThread()
+    browser = Browser(AsyncBrowser(), bridge)
+
+    def close() -> None:
+        if close_error:
+            raise ValueError("close failed")
+
+    try:
+        try:
+            with browser.page() as page:
+                reference = weakref.ref(page)
+                monkeypatch.setattr(page, "close", close)
+        except ValueError:
+            assert close_error
+        monkeypatch.undo()
+        del page
+        gc.collect()
+        assert reference() is None
     finally:
         browser.close()
         bridge.close()

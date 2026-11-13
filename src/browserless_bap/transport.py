@@ -41,7 +41,7 @@ class _RedactSecrets(logging.Filter):
         try:
             message = record.getMessage()
         except Exception:
-            return True
+            return False
         record.msg = re.sub(
             r"(Authorization: )[^\r\n]+",
             r"\1<redacted>",
@@ -204,6 +204,8 @@ class Transport:
                 )
                 self._connection = connection
                 await self._send_frame({"type": "connection_init"})
+                if cm.expired():
+                    raise builtins.TimeoutError
                 self._connected = True
             return
         except builtins.TimeoutError as exc:
@@ -227,7 +229,8 @@ class Transport:
                 self._closed = True
                 if connection is not None:
                     with suppress(Exception):
-                        await _maybe_await(connection.close())
+                        async with asyncio.timeout(5):
+                            await _maybe_await(connection.close())
                 self._connection = None
         raise error
 

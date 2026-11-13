@@ -174,6 +174,65 @@ async def test_failed_connection_init_closes_connection() -> None:
     await transport.close()
 
 
+async def test_connect_timeout_survives_stalled_cleanup() -> None:
+    class StalledConnection(FakeConnection):
+        async def send(self, message: str) -> None:
+            await asyncio.Event().wait()
+
+        async def close(self) -> None:
+            await asyncio.Event().wait()
+
+    transport = Transport(
+        "ws://unused",
+        transport_factory=lambda _url: StalledConnection(),
+        connect_timeout=20,
+    )
+    async with asyncio.timeout(6):
+        with pytest.raises(BAPTimeoutError) as caught:
+            await transport.connect()
+    assert caught.value.operation == "connect"
+    assert caught.value.timeout_ms == 20
+    assert caught.value.__context__ is None
+    assert transport.closed
+    await transport.close()
+
+
+@pytest.mark.parametrize("stage", ["factory", "init"])
+async def test_connect_rejects_suppressed_deadline_cancellation(stage: str) -> None:
+    async def stall() -> None:
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            pass
+
+    class LateConnection(FakeConnection):
+        async def send(self, message: str) -> None:
+            if stage == "init":
+                await stall()
+            await super().send(message)
+
+    connection = LateConnection()
+
+    async def factory(_url: str | None) -> FakeConnection:
+        if stage == "factory":
+            await stall()
+        return connection
+
+    transport = Transport(
+        "ws://unused",
+        transport_factory=cast(TransportFactory, factory),
+        connect_timeout=20,
+    )
+    async with asyncio.timeout(1):
+        with pytest.raises(BAPTimeoutError) as caught:
+            await transport.connect()
+    assert caught.value.operation == "connect"
+    assert caught.value.timeout_ms == 20
+    assert connection.closed
+    assert transport.closed
+    await transport.close()
+
+
 async def test_cancelled_connect_waiter_does_not_poison_others() -> None:
     sent = asyncio.Event()
 
@@ -353,13 +412,25 @@ async def test_connection_errors_have_no_context(site: str) -> None:
 
 def test_log_filter_survives_bad_records() -> None:
     for message, args, expected in [
-        ("%d items", ("x",), "%d items"),
         ("", (), ""),
         ("GET /bql?token=abc", (), "GET /bql?token=<redacted>"),
     ]:
         record = logging.LogRecord("test", logging.DEBUG, "", 0, message, args, None)
         assert _RedactSecrets().filter(record)
         assert record.msg == expected
+
+
+def test_bad_log_format_does_not_leak_secrets(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    logger = logging.Logger("redaction-test", logging.DEBUG)
+    logger.addFilter(_RedactSecrets())
+    logger.addHandler(logging.StreamHandler())
+    logger.debug("GET /bql?token=SECRET %d", "x")
+
+    captured = capsys.readouterr()
+    assert "SECRET" not in captured.out + captured.err
+    assert "Logging error" not in captured.err
 
 
 @pytest.mark.asyncio

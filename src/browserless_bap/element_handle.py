@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 # BrowserQL pastes selectors into JavaScript escaping only double quotes.
 # URI-encoded JSON survives that extra string parse, including nested selectors.
+# JSON escapes lone UTF-16 surrogates before URI encoding can reject them.
 def _selector_literal(selector: str) -> str:
     encoded = quote(json.dumps(selector), safe="!~*'()")
     return f"JSON.parse(decodeURIComponent({json.dumps(encoded)}))"

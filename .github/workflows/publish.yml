@@ -127,6 +127,38 @@ jobs:
           name: distributions
           path: dist/
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+      # The package is already on PyPI by this point; a Slack hiccup must not mark
+      # the release as failed.
+      - name: Notify Slack
+        if: success()
+        continue-on-error: true
+        env:
+          TAG: ${{ github.ref_name }}
+          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_RELEASES_WEBHOOK }}
+        run: |
+          if test -z "$SLACK_WEBHOOK_URL"; then
+            echo "::warning::SLACK_RELEASES_WEBHOOK is not set; skipping the release notification."
+            exit 0
+          fi
+          payload="$(
+            jq -n \
+              --arg tag "$TAG" \
+              --arg release_url "$RELEASE_URL" \
+              --arg pypi_url "https://pypi.org/project/browserless-bap/${TAG#v}/" \
+              '{text: ":package: *<\($release_url)|\($tag)>* of browserless-bap published to <\($pypi_url)|PyPI>."}'
+          )"
+          curl --fail-with-body \
+            --silent --show-error \
+            --connect-timeout 10 \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 2 \
+            --retry-all-errors \
+            --request POST \
+            --url "$SLACK_WEBHOOK_URL" \
+            --header 'Content-Type: application/json' \
+            --data "$payload"
 
   publish-testpypi:
     if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'

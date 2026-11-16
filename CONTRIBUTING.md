@@ -125,7 +125,9 @@ Conventional Commits type decides the next version and the changelog entry:
 release-please keeps one draft release pull request open against `main` with the next
 version and changelog. A maintainer marks it ready and merges it; that creates the
 GitHub Release and the `vX.Y.Z` tag, which runs `publish.yml` to upload to PyPI after a
-maintainer approves the `pypi` deployment. Do not edit `_version.py`,
+maintainer approves the `pypi` deployment. After the upload, `publish.yml` posts the
+release to the team's release channel through the `SLACK_RELEASES_WEBHOOK` secret; a
+failed post does not fail the release. Do not edit `_version.py`,
 `.release-please-manifest.json` or `CHANGELOG.md` by hand.
 
 ## Public repository rules

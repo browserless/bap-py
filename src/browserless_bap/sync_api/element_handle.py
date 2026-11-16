@@ -13,6 +13,7 @@ from ._base import SyncBase
 class ElementHandle(SyncBase[Any]):
     @property
     def inner_html(self) -> str | None:
+        """Element HTML. Requires html=True on the query that produced this handle."""
         return cast(str | None, self._impl.inner_html)
 
     @property
@@ -33,6 +34,7 @@ class ElementHandle(SyncBase[Any]):
 
     @property
     def outer_html(self) -> str | None:
+        """Element markup. Requires html=True on the query that produced this handle."""
         return cast(str | None, self._impl.outer_html)
 
     @property

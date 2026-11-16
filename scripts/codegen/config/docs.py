@@ -24,11 +24,13 @@ METHOD_DOCSTRINGS = {
     ),
     "query_selector": (
         "Return a handle for the first element matching `selector`, or `None`. "
-        "The element's `innerHTML`/`outerHTML` are fetched only with `html=True`."
+        "The element's `innerHTML`/`outerHTML` are fetched only with `html=True`; "
+        "reading `inner_html` or `outer_html` without it raises `BAPValueError`."
     ),
     "query_selector_all": (
         "Return handles for every element matching `selector`. "
-        "The elements' `innerHTML`/`outerHTML` are fetched only with `html=True`."
+        "The elements' `innerHTML`/`outerHTML` are fetched only with `html=True`; "
+        "reading `inner_html` or `outer_html` without it raises `BAPValueError`."
     ),
 }
 

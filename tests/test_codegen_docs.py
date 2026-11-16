@@ -59,6 +59,16 @@ def test_docs_cli_emits_deterministic_docusaurus_reference(tmp_path: Path) -> No
     assert "## `closed`" in before[Path("sync-page.mdx")]
     assert "## `inner_html`" in before[Path("async-element-handle.mdx")]
     assert "## `selector`" in before[Path("sync-element-handle.mdx")]
+    for page in ("async-element-handle.mdx", "sync-element-handle.mdx"):
+        assert (
+            "Requires html=True on the query that produced this handle."
+            in before[Path(page)]
+        )
+    for page in ("async-page.mdx", "sync-page.mdx"):
+        assert (
+            "body_encoding=True also adds the base64Encoded flag." in before[Path(page)]
+        )
+        assert "raises `BAPValueError`" in before[Path(page)]
     assert "listener_count(event: str) -> int" in before[Path("sync-page.mdx")]
     assert "Wait for the next event payload" in before[Path("async-page.mdx")]
     assert "Start tracking" in before[Path("sync-page.mdx")]

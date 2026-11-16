@@ -102,6 +102,11 @@ def _class_page(identifier: str, title: str, class_: Class) -> str:
                     "",
                 )
             )
+            property_summary = _summary(
+                member.docstring.value if member.docstring else None
+            )
+            if property_summary:
+                lines.extend((property_summary, ""))
             continue
         if not isinstance(member, Function):
             continue

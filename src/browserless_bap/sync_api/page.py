@@ -221,9 +221,8 @@ class Page(PageGenerated, SyncBase[Any]):
         body: bool | UnsetType = UNSET,
         body_encoding: bool | UnsetType = UNSET,
     ) -> list[ResponseResponse]:
-        """List responses; fetch bodies only with body=True.
-
-        body_encoding=True implies body=True and adds the base64Encoded flag.
+        """List responses. Bodies are fetched only with body=True or body_encoding=True;
+        body_encoding=True also adds the base64Encoded flag.
         """
         return cast(
             list[ResponseResponse],

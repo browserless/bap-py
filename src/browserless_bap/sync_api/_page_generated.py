@@ -479,7 +479,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         html: bool | UnsetType = UNSET,
     ) -> ElementHandle | None:
-        "Return a handle for the first element matching `selector`, or `None`. The element's `innerHTML`/`outerHTML` are fetched only with `html=True`."
+        "Return a handle for the first element matching `selector`, or `None`. The element's `innerHTML`/`outerHTML` are fetched only with `html=True`; reading `inner_html` or `outer_html` without it raises `BAPValueError`."
         return cast(
             "ElementHandle | None",
             self._invoke(
@@ -499,7 +499,7 @@ class PageGenerated:
         visible: bool | UnsetType = UNSET,
         html: bool | UnsetType = UNSET,
     ) -> list[ElementHandle]:
-        "Return handles for every element matching `selector`. The elements' `innerHTML`/`outerHTML` are fetched only with `html=True`."
+        "Return handles for every element matching `selector`. The elements' `innerHTML`/`outerHTML` are fetched only with `html=True`; reading `inner_html` or `outer_html` without it raises `BAPValueError`."
         return cast(
             "list[ElementHandle]",
             self._invoke(

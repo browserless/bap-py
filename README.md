@@ -55,6 +55,39 @@ with bap.Browserless.connect(
 > there and replace `asyncio.run(run())` with `await run()`. The sync API
 > raises `RuntimeError` inside a running event loop.
 
+## Click-triggered navigation
+
+For a click that loads a new document, pass `wait_until` to the click itself:
+
+```python
+# Async API, using an existing page
+result = await page.click("a", wait_until="networkIdle", timeout=30_000)
+navigation = result.get("navigation")
+if navigation is not None:
+    print(navigation["status"], navigation["url"])
+```
+
+```python
+# Sync API, using an existing sync page
+result = page.click("a", wait_until="networkIdle", timeout=30_000)
+navigation = result.get("navigation")
+if navigation is not None:
+    print(navigation["status"], navigation["url"])
+```
+
+`wait_until` accepts `"load"`, `"domContentLoaded"`, or `"networkIdle"` and has no
+default. The server starts waiting before pressing and shares one `timeout`
+budget across finding the element and waiting for navigation. If the click does
+not navigate, it fails with a timeout error. Do not pair a click with a separate
+`wait_for_navigation()` call: a fast navigation can be missed between operations.
+
+Omit `wait_until` for an ordinary click. The SDK then sends the same query as
+before, without selecting `navigation`, and remains compatible with older servers.
+Paired navigation requires a server supporting `click(waitUntil:)`; the optional
+`navigation` response may be `None`. Same-document navigation (`pushState` or hash
+changes) is not detected. For those interactions, click without `wait_until` and
+wait for a destination element instead.
+
 ## Logging
 
 The SDK uses Python's `logging` module with the `browserless_bap` logger.

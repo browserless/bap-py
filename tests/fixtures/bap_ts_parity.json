@@ -32,7 +32,8 @@
       "selector": "String!",
       "timeout": "Float",
       "visible": "Boolean",
-      "wait": "Boolean"
+      "wait": "Boolean",
+      "waitUntil": "WaitUntilGoto"
     },
     "closeLiveURL": {
       "liveURLId": "String!"
@@ -451,6 +452,9 @@
     "watchEvent"
   ],
   "optional_fields": {
+    "ClickResponse": {
+      "navigation": "navigation { status time text url }"
+    },
     "HTTPResponse": {
       "remoteMetadata": "ip port"
     },
@@ -515,6 +519,6 @@
     "WaitForSelectorResponse": "height selector time y x width",
     "WaitForTimeoutResponse": "time"
   },
-  "schema_sha256": "56c404249f64c9e3f781e7b5035c0ff98f9437c42541660b4f2dc7f8f42bdbde",
+  "schema_sha256": "a4137d2366094a4f2c2b4042d0cc54c0799e4e6df494e11822cad3a722ee094d",
   "version": "2.2.0"
 }

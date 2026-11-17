@@ -30,6 +30,7 @@ from .config.methods import (
     options_name,
 )
 from .config.schema_map import (
+    ARGUMENT_OPT_INS,
     ENUM_NAME_OVERRIDES,
     EXCLUDED_MUTATIONS,
     EXCLUDED_TYPES,
@@ -225,6 +226,7 @@ class Schema:
             ("NULLABLE_RETURNS", NULLABLE_RETURNS),
             ("EXCLUDED_MUTATIONS", EXCLUDED_MUTATIONS),
             ("SHARED_OPTIONS", SHARED_OPTIONS),
+            ("ARGUMENT_OPT_INS", ARGUMENT_OPT_INS),
         )
         errors: list[str] = []
         for table_name, table in table_sets:
@@ -278,6 +280,17 @@ class Schema:
                         )
         for field in fields.values():
             groups = OPTIONAL_FIELDS.get(named_type(field.type), {})
+            for arg, opt_in in ARGUMENT_OPT_INS.get(field.name.value, {}).items():
+                if arg not in {a.name.value for a in field.arguments or ()}:
+                    errors.append(
+                        f"ARGUMENT_OPT_INS[{field.name.value!r}] contains "
+                        f"unknown argument {arg!r}"
+                    )
+                if opt_in not in groups:
+                    errors.append(
+                        f"ARGUMENT_OPT_INS[{field.name.value!r}] contains "
+                        f"unknown optional field group {opt_in!r}"
+                    )
             for client in CLIENT_ONLY_PARAMS.get(options_name(field.name.value), ()):
                 if client.opt_in is not None and client.opt_in not in groups:
                     errors.append(

@@ -82,6 +82,46 @@ def test_parameterized_response_fields_are_omitted() -> None:
     assert RESPONSE_FIELDS["MapSelectorResponse"] == "innerHTML innerText id class"
 
 
+@pytest.mark.parametrize("wait_until", ["load", "domContentLoaded", "networkIdle"])
+def test_click_navigation_query_and_enum_validation(wait_until: str) -> None:
+    from graphql import Undefined, graphql_sync
+
+    assert GRAPHQL_SCHEMA.mutation_type is not None
+    wait_arg = GRAPHQL_SCHEMA.mutation_type.fields["click"].args["waitUntil"]
+    assert wait_arg.default_value is Undefined
+
+    query, variables = build_operation(
+        "click",
+        {"selector": "#go", "waitUntil": wait_until},
+        selection_for("ClickResponse", ("navigation",)),
+        ARG_TYPES["click"],
+    )
+    _assert_valid(query)
+    result = graphql_sync(GRAPHQL_SCHEMA, query, variable_values=variables)
+    assert result.errors is None
+    invalid = graphql_sync(
+        GRAPHQL_SCHEMA, query, variable_values={**variables, "waitUntil": "invalid"}
+    )
+    assert invalid.errors is not None
+    assert "WaitUntilGoto" in invalid.errors[0].message
+
+
+def test_plain_click_remains_valid_without_navigation_schema() -> None:
+    from graphql import GraphQLObjectType
+
+    legacy = build_schema(SOURCE)
+    click_response = legacy.get_type("ClickResponse")
+    assert isinstance(click_response, GraphQLObjectType)
+    del click_response.fields["navigation"]
+    assert legacy.mutation_type is not None
+    del legacy.mutation_type.fields["click"].args["waitUntil"]
+    query, variables = build_operation(
+        "click", {"selector": "#go"}, selection_for("ClickResponse"), ARG_TYPES["click"]
+    )
+    assert not validate(legacy, parse(query))
+    assert variables == {"selector": "#go"}
+
+
 @pytest.mark.parametrize(
     "args",
     [

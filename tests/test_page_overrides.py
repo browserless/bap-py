@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, assert_type, cast
 
 import pytest
+from sync._server import ServerThread
 
+from browserless_bap import Browserless
 from browserless_bap._page_generated import PageGenerated
 from browserless_bap._unset import UnsetType
 from browserless_bap.element_handle import _selector_expression, _selector_literal
@@ -45,9 +47,19 @@ if TYPE_CHECKING:
             SelectResponse,
         )
         assert_type(await element.click(), ClickResponse)
+        assert_type(
+            (await page.click("a", wait_until="load")).get("navigation"),
+            HTTPResponse | None,
+        )
+        assert_type(await element.click(wait_until="load"), ClickResponse)
         assert_type(sync_page.goto("https://example.com"), HTTPResponse | None)
         assert_type(sync_page.response(), list[ResponseResponse])
         assert_type(sync_element.click(), ClickResponse)
+        assert_type(
+            sync_page.click("a", wait_until="load").get("navigation"),
+            HTTPResponse | None,
+        )
+        assert_type(sync_element.click(wait_until="load"), ClickResponse)
 
 
 class RecordingTransport:
@@ -444,3 +456,43 @@ async def test_element_html_requires_opt_in_and_scoped_queries_forward_it() -> N
         assert page.calls[-1][4] == ("html",)
     finally:
         await page.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("wait_until", ["load", "domContentLoaded", "networkIdle"])
+async def test_click_navigation_is_opt_in(wait_until: str) -> None:
+    from browserless_bap.types import WaitUntilGoto
+
+    with ServerThread() as server:
+        async with Browserless.connect(browser_ws_endpoint=server.url) as browser:
+            async with browser.page() as page:
+                assert await page.click("#go") == {
+                    "selector": "#go",
+                    "time": 7,
+                    "x": 13,
+                    "y": 29,
+                }
+                result = await page.click(
+                    "#go", wait_until=cast(WaitUntilGoto, wait_until), timeout=1234
+                )
+                assert result["navigation"] == {
+                    "status": 201,
+                    "url": "https://example.com/next",
+                }
+                assert (await page.click("#null", wait_until="load"))[
+                    "navigation"
+                ] is None
+        assert len(server.click_payloads) == 3
+        plain, paired, _ = server.click_payloads
+        assert plain["query"] == (
+            "mutation($selector: String!) "
+            "{ click(selector: $selector) { selector time x y } }"
+        )
+        assert plain["variables"] == {"selector": "#go"}
+        assert paired["variables"] == {
+            "selector": "#go",
+            "timeout": 1234,
+            "waitUntil": wait_until,
+        }
+        assert "$waitUntil: WaitUntilGoto" in paired["query"]
+        assert "navigation { status time text url }" in paired["query"]

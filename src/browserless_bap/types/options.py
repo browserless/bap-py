@@ -29,6 +29,7 @@ class ClickOptions(TypedDict, total=False):
     timeout: NotRequired[float]
     visible: NotRequired[bool]
     wait: NotRequired[bool]
+    wait_until: NotRequired[WaitUntilGoto]
 
 
 class SetContentOptions(TypedDict, total=False):

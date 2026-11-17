@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "browserless"
+version = "0.1.0"
+description = "Installs browserless-bap, the Python client for Browserless's Browser Automation Protocol"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Browserless", email = "eng@browserless.io"}]
+keywords = ["browserless", "browserql", "browser-automation", "playwright"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+# Unpinned on purpose, so the alias never needs a release when the SDK has one.
+dependencies = ["browserless-bap"]
+
+[project.urls]
+Homepage = "https://github.com/browserless/bap-py"
+Documentation = "https://docs.browserless.io/bap/python/reference"
+Source = "https://github.com/browserless/bap-py/tree/main/meta/browserless"
+
+[tool.hatch.build.targets.sdist]
+include = ["/LICENSE", "/README.md", "/pyproject.toml"]
+
+# The wheel contains no modules; it only declares the dependency.
+[tool.hatch.build.targets.wheel]
+bypass-selection = true

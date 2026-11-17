@@ -130,6 +130,18 @@ release to the team's release channel through the `SLACK_RELEASES_WEBHOOK` secre
 failed post does not fail the release. Do not edit `_version.py`,
 `.release-please-manifest.json` or `CHANGELOG.md` by hand.
 
+### The `browserless` alias package
+
+`meta/browserless` builds the `browserless` package on PyPI. It contains no code
+and depends on `browserless-bap` without a version pin, so `pip install browserless`
+installs the latest SDK when none is installed. Like any unpinned dependency, an
+installed `browserless-bap` is kept as is; upgrade it with
+`pip install --upgrade browserless-bap`. The alias does not need a release when the
+SDK does. To
+publish a change to it, bump its `version` in `meta/browserless/pyproject.toml`,
+merge, then run the "Publish browserless alias" workflow from `main`; it uploads
+after a maintainer approves the `pypi-alias` deployment.
+
 ## Public repository rules
 
 PR titles, descriptions, commit messages and review comments must not contain

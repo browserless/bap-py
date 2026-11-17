@@ -36,10 +36,16 @@ jobs:
       - name: Check that the wheel installs browserless-bap and ships no modules
         working-directory: meta/browserless
         run: |
-          if python -m zipfile -l dist/*.whl | grep -E '\.py$'; then
-            echo "::error::The alias wheel must not contain Python modules."
-            exit 1
-          fi
+          # Every wheel entry must be metadata under *.dist-info/.
+          python - dist/*.whl <<'PY'
+          import sys
+          import zipfile
+
+          names = zipfile.ZipFile(sys.argv[1]).namelist()
+          extra = [n for n in names if ".dist-info/" not in n]
+          if extra:
+              raise SystemExit(f"::error::The alias wheel must contain only metadata: {extra}")
+          PY
           python -m venv /tmp/alias-smoke
           /tmp/alias-smoke/bin/python -m pip install dist/*.whl
           /tmp/alias-smoke/bin/python -c "import browserless_bap, browserless_bap.sync_api"

@@ -17,7 +17,7 @@ classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
 ]
-# Unpinned on purpose: this alias always installs the latest SDK release.
+# Unpinned on purpose, so the alias never needs a release when the SDK has one.
 dependencies = ["browserless-bap"]
 
 [project.urls]

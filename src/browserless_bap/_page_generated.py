@@ -1134,7 +1134,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait_until: WaitUntilGoto | UnsetType = UNSET,
     ) -> HTTPResponse:
-        "Waits for a navigation event to fire. It only sees navigations that start after it runs: to wait for a navigation a click triggers, pass `waitUntil` to `click` instead"
+        "Wait for a navigation event that starts after this call. To wait for navigation triggered by a click, pass `wait_until` to `click` instead."
         args = drop_unset(
             {
                 "timeout": timeout,

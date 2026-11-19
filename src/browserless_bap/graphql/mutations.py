@@ -56,6 +56,9 @@ RESPONSE_FIELDS: dict[str, str] = {
 }
 
 OPTIONAL_FIELDS: dict[str, dict[str, str]] = {
+    "ClickResponse": {
+        "navigation": "navigation { status time text url }"
+    },
     "HTTPResponse": {
         "remoteMetadata": "ip port"
     },
@@ -101,7 +104,8 @@ ARG_TYPES: dict[str, dict[str, str]] = {
         "selector": "String!",
         "timeout": "Float",
         "visible": "Boolean",
-        "wait": "Boolean"
+        "wait": "Boolean",
+        "waitUntil": "WaitUntilGoto"
     },
     "closeLiveURL": {
         "liveURLId": "String!"

@@ -24,6 +24,7 @@ class ServerThread:
         self.subscribe_count = 0
         self.complete_count = 0
         self.live_url_variables: dict[str, Any] | None = None
+        self.click_payloads: list[dict[str, Any]] = []
         self._thread = threading.Thread(
             target=self._run,
             name="bap-test-server",
@@ -137,6 +138,16 @@ class ServerThread:
                         "liveURL": "https://example.com/live",
                     }
                 }
+            elif "click(" in query:
+                self.click_payloads.append(frame["payload"])
+                click: dict[str, Any] = {"selector": "#go", "time": 7, "x": 13, "y": 29}
+                if "navigation {" in query:
+                    click["navigation"] = (
+                        None
+                        if frame["payload"]["variables"]["selector"] == "#null"
+                        else {"status": 201, "url": "https://example.com/next"}
+                    )
+                data = {"click": click}
             elif "goto" in query:
                 data = {
                     "goto": {

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 
 from .config.schema_map import OPTIONAL_FIELDS
-from .schema import Schema, render_graphql_type
+from .schema import Schema, named_type, render_graphql_type
 from .writer import HEADER
 
 
@@ -19,7 +19,14 @@ def response_fields(schema: Schema) -> dict[str, str]:
 def optional_fields(schema: Schema) -> dict[str, dict[str, str]]:
     return {
         schema.response_name(name): {
-            group: " ".join(fields) for group, fields in groups.items()
+            group: " ".join(
+                f"{field.name.value} {{ {nested} }}"
+                if (nested := schema.response_selection(named_type(field.type)))
+                else field.name.value
+                for field in schema.objects[name].fields or ()
+                if field.name.value in fields
+            )
+            for group, fields in groups.items()
         }
         for name, groups in OPTIONAL_FIELDS.items()
     }

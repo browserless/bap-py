@@ -22,7 +22,7 @@ def test_larger_schema_baseline_and_config_validate() -> None:
     schema_path = ROOT / "src/browserless_bap/mutations.graphql"
     schema = Schema.load(schema_path)
 
-    assert len(schema.source.splitlines()) == 5560
+    assert len(schema.source.splitlines()) == 5585
     assert len(schema.mutation_fields) == 57
     assert {"console", "request", "response", "liveComplete"} == set(
         schema.subscription_fields

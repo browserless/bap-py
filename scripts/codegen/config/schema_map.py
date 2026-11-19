@@ -35,7 +35,9 @@ EXCLUDED_MUTATIONS = {
 }
 
 SUBSCRIPTION_OMIT_FIELDS = {"response": {"body"}}
+ARGUMENT_OPT_INS = {"click": {"waitUntil": "navigation"}}
 OPTIONAL_FIELDS: dict[str, dict[str, tuple[str, ...]]] = {
+    "ClickResponse": {"navigation": ("navigation",)},
     "HTTPResponse": {"remoteMetadata": ("ip", "port")},
     "ResponseResponse": {"body": ("body",), "bodyEncoding": ("body", "base64Encoded")},
     "QuerySelectorResponse": {"html": ("innerHTML", "outerHTML")},

@@ -17,6 +17,7 @@ from .config.methods import (
     options_name,
 )
 from .config.naming import method_name, param_name
+from .config.schema_map import ARGUMENT_OPT_INS
 from .schema import Schema, is_list, is_required, named_type
 
 
@@ -94,6 +95,7 @@ def _params(
                 annotation=schema.python_type(arg.type),
                 positional=is_positional,
                 required=is_required(arg.type),
+                opt_in=ARGUMENT_OPT_INS.get(field.name.value, {}).get(gql_name),
             )
         )
     option_type = options_name(field.name.value)

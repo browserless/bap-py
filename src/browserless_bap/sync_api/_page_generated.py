@@ -107,6 +107,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
+        wait_until: WaitUntilGoto | UnsetType = UNSET,
     ) -> ClickResponse:
         "Waits for the element to be visible, scrolls to it, then clicks on it with native events"
         return cast(
@@ -118,6 +119,7 @@ class PageGenerated:
                 timeout=timeout,
                 visible=visible,
                 wait=wait,
+                wait_until=wait_until,
             ),
         )
 
@@ -833,7 +835,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait_until: WaitUntilGoto | UnsetType = UNSET,
     ) -> HTTPResponse:
-        "Waits for a navigation even to fire, useful for clicking an element and waiting for a page load of some"
+        "Wait for a navigation event that starts after this call. To wait for navigation triggered by a click, pass `wait_until` to `click` instead."
         return cast(
             "HTTPResponse",
             self._invoke(

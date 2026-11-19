@@ -101,7 +101,9 @@ def _opt_in_lines(model: MethodModel, indent: str) -> list[str]:
     if not params:
         return []
     entries = ", ".join(
-        f"({json.dumps(param.opt_in)}, {param.py_name})" for param in params
+        f"({json.dumps(param.opt_in)}, {param.py_name}"
+        f"{' is not UNSET' if param.gql_name is not None else ''})"
+        for param in params
     )
     return [
         f"{indent}opt_in=tuple(",

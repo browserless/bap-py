@@ -12,6 +12,10 @@ METHOD_DOCSTRINGS = {
         "Start tracking `event` now so a later `wait_for_event` call can return "
         "immediately if that event has already fired."
     ),
+    "wait_for_navigation": (
+        "Wait for a navigation event that starts after this call. To wait for "
+        "navigation triggered by a click, pass `wait_until` to `click` instead."
+    ),
     "eval_on_selector": (
         "Return the text content of the first element matching `selector`. "
         "Unlike Playwright's `eval_on_selector`, this takes no page function: "

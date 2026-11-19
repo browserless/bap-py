@@ -68,6 +68,32 @@ def test_sync_live_url_wait_retains_early_completion() -> None:
                 assert page.close_live_url(link["liveURLId"]) == {"liveURLId": "link"}
 
 
+def test_sync_click_navigation_is_opt_in() -> None:
+    with ServerThread() as server:
+        with sync_bap.Browserless.connect(browser_ws_endpoint=server.url) as browser:
+            with browser.page() as page:
+                assert "navigation" not in page.click("#go")
+                result = page.click("#go", wait_until="networkIdle", timeout=1234)
+                assert result["navigation"] == {
+                    "status": 201,
+                    "url": "https://example.com/next",
+                }
+                assert page.click("#null", wait_until="load")["navigation"] is None
+        assert len(server.click_payloads) == 3
+        plain, paired, _ = server.click_payloads
+        assert plain["query"] == (
+            "mutation($selector: String!) "
+            "{ click(selector: $selector) { selector time x y } }"
+        )
+        assert plain["variables"] == {"selector": "#go"}
+        assert paired["variables"] == {
+            "selector": "#go",
+            "waitUntil": "networkIdle",
+            "timeout": 1234,
+        }
+        assert "navigation { status time text url }" in paired["query"]
+
+
 def test_sync_live_url_accepts_rich_instructions() -> None:
     with ServerThread() as server:
         with sync_bap.Browserless.connect(

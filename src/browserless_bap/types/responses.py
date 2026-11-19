@@ -33,6 +33,7 @@ class ClickResponse(TypedDict, total=False):
     time: NotRequired[float | None]
     x: NotRequired[float | None]
     y: NotRequired[float | None]
+    navigation: NotRequired[HTTPResponse | None]
 
 
 class CloseLiveURLResponse(TypedDict, total=False):

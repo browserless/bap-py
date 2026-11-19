@@ -141,6 +141,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         visible: bool | UnsetType = UNSET,
         wait: bool | UnsetType = UNSET,
+        wait_until: WaitUntilGoto | UnsetType = UNSET,
     ) -> ClickResponse:
         "Waits for the element to be visible, scrolls to it, then clicks on it with native events"
         args = drop_unset(
@@ -150,6 +151,7 @@ class PageGenerated:
                 "timeout": timeout,
                 "visible": visible,
                 "wait": wait,
+                "waitUntil": wait_until,
             }
         )
         return cast(
@@ -159,6 +161,11 @@ class PageGenerated:
                 args,
                 "ClickResponse",
                 timeout=None if timeout is UNSET else timeout,
+                opt_in=tuple(
+                    group
+                    for group, enabled in (("navigation", wait_until is not UNSET),)
+                    if enabled is True
+                ),
             ),
         )
 
@@ -1127,7 +1134,7 @@ class PageGenerated:
         timeout: float | UnsetType = UNSET,
         wait_until: WaitUntilGoto | UnsetType = UNSET,
     ) -> HTTPResponse:
-        "Waits for a navigation even to fire, useful for clicking an element and waiting for a page load of some"
+        "Wait for a navigation event that starts after this call. To wait for navigation triggered by a click, pass `wait_until` to `click` instead."
         args = drop_unset(
             {
                 "timeout": timeout,

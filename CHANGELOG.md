@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/browserless/bap-py/compare/v0.3.0...v0.4.0) (2026-11-19)
+
+
+### Features
+
+* pair clicks with navigation waits ([#15](https://github.com/browserless/bap-py/issues/15)) ([ae7617e](https://github.com/browserless/bap-py/commit/ae7617e0409a1ac373b9cf434057b56a89aa76ea))
+
 ## [0.3.0](https://github.com/browserless/bap-py/compare/v0.2.0...v0.3.0) (2026-11-13)
 
 
